@@ -6,13 +6,15 @@
   <title>Emoji Social Attention (Web)</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jspsych@7.3.4/dist/jspsych.css">
- <script src="https://cdn.jsdelivr.net/npm/jspsych@7.3.4/dist/jspsych.js"></script>
 
- <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@1.2.1/dist/index.global.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-fullscreen@1.2.1/dist/index.global.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-keyboard-response@1.2.1/dist/index.global.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-image-keyboard-response@1.2.1/dist/index.global.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-survey-html-form@1.2.1/dist/index.global.js"></script>
+  <!-- 关键：全部加 defer，保证按顺序加载后再执行 -->
+  <script defer src="https://cdn.jsdelivr.net/npm/jspsych@7.3.4/dist/jspsych.js"></script>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@1.2.1/dist/index.global.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-fullscreen@1.2.1/dist/index.global.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-keyboard-response@1.2.1/dist/index.global.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-image-keyboard-response@1.2.1/dist/index.global.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-survey-html-form@1.2.1/dist/index.global.js"></script>
 
   <style>
     body { background: rgb(128,128,128); }
@@ -33,6 +35,7 @@
 </head>
 
 <body class="hide-cursor">
-  <script src="./experiment.js"></script>
+  <!-- experiment 也加 defer，确保等上面库都准备好 -->
+  <script defer src="./experiment.js"></script>
 </body>
 </html>
