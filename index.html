@@ -1,120 +1,122 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Emoji Social Attention (Web)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- 本地化 jsPsych -->
-  <link rel="stylesheet" href="./lib/jspsych.css">
+<title>Emoji Social Attention (Web)</title>
 
-  <script defer src="./lib/jspsych.js"></script>
-  <script defer src="./lib/plugin-preload.js"></script>
-  <script defer src="./lib/plugin-fullscreen.js"></script>
-  <script defer src="./lib/plugin-html-keyboard-response.js"></script>
-  <script defer src="./lib/plugin-image-keyboard-response.js"></script>
-  <script defer src="./lib/plugin-survey-html-form.js"></script>
+<!-- =========================
+     jsPsych 8.2.3 本地文件
+     （你已经下载好的版本）
+========================= -->
+<link rel="stylesheet" href="./lib/jspsych.css">
+<script src="./lib/jspsych.js"></script>
 
-  <style>
-    html, body { width: 100%; height: 100%; }
-    body {
-      margin: 0;
-      background: rgb(128,128,128);
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    body.hide-cursor, body.hide-cursor * { cursor: none !important; }
+<script src="./lib/plugin-preload.js"></script>
+<script src="./lib/plugin-fullscreen.js"></script>
+<script src="./lib/plugin-html-keyboard-response.js"></script>
+<script src="./lib/plugin-image-keyboard-response.js"></script>
+<script src="./lib/plugin-survey-html-form.js"></script>
 
-    /* ✅ 缩放舞台：把整个实验当成“固定设计尺寸”的画布 */
-    #scale-stage {
-      width: var(--base-w);
-      height: var(--base-h);
-      transform: scale(var(--ui-scale));
-      transform-origin: center center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
+<!-- =========================
+     自动屏幕缩放（核心）
+========================= -->
+<script>
+(function () {
 
-    /* 让 jsPsych 容器填满舞台 */
-    #scale-stage #jspsych-target,
-    #scale-stage .jspsych-display-element,
-    #scale-stage .jspsych-content-wrapper {
-      width: 100% !important;
-      height: 100% !important;
-      overflow: hidden !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-    }
+  const BASE_W = 1920;
+  const BASE_H = 1080;
 
-    /* 你自定义的 class（experiment.js 用到） */
-    .center-wrap{
-      width:100%;height:100%;
-      display:flex;align-items:center;justify-content:center;
-      flex-direction:column;color:#000;
-      font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
-      user-select:none;text-align:center;
-    }
-    .bigtext{font-size:50px;white-space:pre-line;line-height:1.4;}
-    .fix{font-size:90px;line-height:1;margin:0;}
-    .row{display:flex;gap:260px;align-items:center;justify-content:center;}
-    .imgbox{width:194px;height:194px;display:flex;align-items:center;justify-content:center;}
-    .imgbox img{width:194px;height:194px;object-fit:contain;}
-  </style>
+  function applyScale() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
 
-  <!-- ✅ 自动计算缩放比例：把“整个实验画布”缩到屏幕里 -->
-  <script>
-    (function () {
-      // 你可以改这里：把实验当成哪个“设计分辨率”
-      const BASE_W = 1920;
-      const BASE_H = 1080;
+    const scale = Math.min(w / BASE_W, h / BASE_H);
 
-      function applyScale() {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const scale = Math.min(vw / BASE_W, vh / BASE_H);
+    document.body.style.transform = `scale(${scale})`;
+    document.body.style.transformOrigin = "top left";
+    document.body.style.width = BASE_W + "px";
+    document.body.style.height = BASE_H + "px";
+  }
 
-        document.documentElement.style.setProperty('--ui-scale', String(scale));
-        document.documentElement.style.setProperty('--base-w', BASE_W + 'px');
-        document.documentElement.style.setProperty('--base-h', BASE_H + 'px');
-      }
+  window.addEventListener("resize", applyScale);
+  window.addEventListener("load", applyScale);
 
-      window.addEventListener('resize', applyScale);
-      window.addEventListener('load', applyScale);
-    })();
-  </script>
+})();
+</script>
+
+<!-- =========================
+     样式
+========================= -->
+<style>
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: rgb(128,128,128);
+}
+
+body.hide-cursor,
+body.hide-cursor * {
+  cursor: none !important;
+}
+
+.center-wrap{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  color:#000;
+  font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+  user-select:none;
+}
+
+.bigtext{
+  font-size:50px;
+  white-space:pre-line;
+  text-align:center;
+  line-height:1.4;
+}
+
+.fix{
+  font-size:90px;
+}
+
+.row{
+  display:flex;
+  gap:260px;
+  align-items:center;
+  justify-content:center;
+}
+
+.imgbox{
+  width:194px;
+  height:194px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.imgbox img{
+  width:194px;
+  height:194px;
+  object-fit:contain;
+}
+
+</style>
+
 </head>
 
 <body class="hide-cursor">
-  <!-- ✅ 缩放舞台 -->
-  <div id="scale-stage">
-    <!-- ✅ 提前放一个 jspsych-target，jsPsych 会用/或我们把它搬进来 -->
-    <div id="jspsych-target"></div>
-  </div>
 
-  <!-- 你的实验脚本 -->
-  <script defer src="./experiment.js"></script>
+<!-- =========================
+     你的实验脚本
+========================= -->
+<script src="./experiment.js"></script>
 
-  <!-- ✅ 保险：如果 jsPsych 自己又创建了 jspsych-target，就把它搬到舞台里 -->
-  <script>
-    (function () {
-      function moveTarget() {
-        const stage = document.getElementById('scale-stage');
-        const target = document.getElementById('jspsych-target');
-        if (stage && target && target.parentElement !== stage) {
-          stage.innerHTML = '';
-          stage.appendChild(target);
-        }
-      }
-      // 等 experiment.js/initJsPsych 创建后再搬一次
-      window.addEventListener('load', () => setTimeout(moveTarget, 50));
-      setTimeout(moveTarget, 200);
-      setTimeout(moveTarget, 800);
-    })();
-  </script>
 </body>
 </html>
