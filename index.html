@@ -5,57 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Emoji Social Attention (Web)</title>
 
-  <!-- ===== jsPsych 8.2.3 本地 ===== -->
-  <link rel="stylesheet" href="./lib/jspsych.css" />
+  <!-- jsPsych 样式（本地） -->
+  <link rel="stylesheet" href="./lib/jspsych.css">
+
+  <style>
+    html, body{
+      margin:0;
+      padding:0;
+      width:100%;
+      height:100%;
+      background: rgb(128,128,128);
+      overflow:hidden; /* 不要滚动条 */
+    }
+
+    /* ✅ 不隐藏鼠标（并强制覆盖任何 cursor:none） */
+    body, body * { cursor: default !important; }
+    input, textarea { cursor: text !important; }
+    button, select, option, label, a { cursor: pointer !important; }
+
+    /* ✅ 让 jsPsych 内容区域真正铺满屏幕（不同版本容器名都兜底） */
+    #jspsych-target,
+    .jspsych-display-element,
+    .jspsych-content-wrapper,
+    .jspsych-content{
+      width:100vw !important;
+      height:100vh !important;
+      max-width:none !important;
+      max-height:none !important;
+      margin:0 !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+    }
+
+    /* ✅ 图片指令页如果需要全屏完整显示可用这个 class（你当前是 image plugin，不一定用得到） */
+    .fit-fullscreen-img{
+      width:100vw;
+      height:100vh;
+      object-fit:contain;
+      display:block;
+    }
+  </style>
+
+  <!-- jsPsych core（本地） -->
   <script src="./lib/jspsych.js"></script>
+
+  <!-- plugins（本地） -->
   <script src="./lib/plugin-preload.js"></script>
   <script src="./lib/plugin-fullscreen.js"></script>
   <script src="./lib/plugin-html-keyboard-response.js"></script>
+  <script src="./lib/plugin-image-keyboard-response.js"></script>
   <script src="./lib/plugin-survey-html-form.js"></script>
-
-  <style>
-    html, body { margin:0; padding:0; width:100%; height:100%; background: rgb(128,128,128); }
-    body.hide-cursor, body.hide-cursor * { cursor: none !important; }
-
-    /* ===== 关键：保证说明图片“整张完整显示在屏幕里” ===== */
-    .fullimg-wrap{
-      width:100vw; height:100vh;
-      display:flex; align-items:center; justify-content:center;
-      background: rgb(128,128,128);
-      overflow:hidden;
-    }
-    .fullimg-wrap img{
-      max-width: 100vw !important;
-      max-height: 100vh !important;
-      width: auto !important;
-      height: auto !important;
-      object-fit: contain !important;
-      display:block;
-    }
-
-    /* 统一：不出现滚动条 */
-    html, body, .jspsych-display-element, .jspsych-content-wrapper, .jspsych-content{
-      overflow:hidden !important;
-    }
-
-    /* 你的实验 HTML 用到的基础样式 */
-    .center-wrap{
-      width:100vw; height:100vh;
-      display:flex; align-items:center; justify-content:center;
-      flex-direction:column;
-      color:#000;
-      font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
-      user-select:none;
-    }
-    .bigtext{ font-size:50px; white-space:pre-line; text-align:center; line-height:1.4; }
-    .fix{ font-size:90px; line-height:1; margin:0; }
-    .row{ display:flex; gap:260px; align-items:center; justify-content:center; }
-    .imgbox{ width:194px; height:194px; display:flex; align-items:center; justify-content:center; }
-    .imgbox img{ width:194px; height:194px; object-fit:contain; }
-  </style>
 </head>
 
-<body class="hide-cursor">
+<body>
+  <!-- ✅ 如果 core 没加载，直接提示（避免白屏） -->
+  <script>
+    (function(){
+      if (typeof initJsPsych !== "function"){
+        document.body.innerHTML =
+          '<div style="width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;font-family:Consolas,monospace;color:#000;">' +
+          '<div style="font-size:18px;line-height:1.6;max-width:900px;padding:24px;background:#fff;border-radius:12px;">' +
+          '<b>jsPsych core 未加载成功（initJsPsych 不存在）</b><br>' +
+          '请检查：<br>' +
+          '1) ./lib/jspsych.js 是否存在且路径正确<br>' +
+          '2) GitHub Pages 对大小写敏感：文件名必须完全一致<br>' +
+          '</div></div>';
+        throw new Error("initJsPsych is not defined. jsPsych core failed to load.");
+      }
+    })();
+  </script>
+
+  <!-- ✅ 你的实验脚本（最后加载） -->
   <script src="./experiment.js"></script>
 </body>
 </html>
