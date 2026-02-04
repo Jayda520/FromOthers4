@@ -2,41 +2,22 @@
   "use strict";
 
   // ==============================
-  // Paths (match your current repo)
+  // Paths (match PsychoPy)
   // ==============================
   const PATHS = {
     instruction: "InstructionImages",
     memory: "MemoryStimuli",
-    cue: "CueStimuli",
+    cue: "CueStimuli", // PsychoPy: CueSimuli or CueStimuli；Web 端建议统一用 CueStimuli
   };
 
   // ==============================
-  // Params (timing & keys)
+  // Font
   // ==============================
   const FONT_FAMILY =
     '"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif';
 
-  const SAME_KEY = "j";
-  const DIFF_KEY = "f";
-
-  const N_PRACTICE = 15;
-  const N_BLOCK1 = 80;
-  const N_BLOCK2 = 80;
-
-  const PASS_CRITERION = 0.75;
-
-  const FIX_DUR = 1000;      // ms  注视点
-  const MEM_DUR = 500;       // ms  记忆刺激
-  const CUE_DUR = 1000;      // ms  emoji+复杂刺激呈现
-  const PROBE_MAX_RT = 3000; // ms  探测最大反应时
-
-  const CONNECT_MIN = 5000, CONNECT_MAX = 15000; // ms 连接页随机
-  const SEND_MIN = 200, SEND_MAX = 1500;         // ms 发送页随机
-
-  const IMG_W = 194, IMG_H = 194; // 你指定的像素尺寸
-
   // ==============================
-  // Stimuli pools
+  // Memory stimuli (7)
   // ==============================
   const MEM_POOL = [
     `${PATHS.memory}/stim_0089.png`,
@@ -48,6 +29,9 @@
     `${PATHS.memory}/stim_0797.png`,
   ];
 
+  // ==============================
+  // Cue pairs (emoji + stim fixed) —— filenames
+  // ==============================
   const CUE_PAIRS = [
     ["anger.png",     "stim_0001_anger.png"],
     ["calmness.png",  "stim_circular-041_calmness.png"],
@@ -58,6 +42,9 @@
     ["surprise.png",  "stim_0889_surprise.png"],
   ].map(([emoji, stim]) => [`${PATHS.cue}/${emoji}`, `${PATHS.cue}/${stim}`]);
 
+  // ==============================
+  // Instruction images (fullscreen, space to continue)
+  // ==============================
   const INSTR = {
     welcome:        `${PATHS.instruction}/welcome.png`,
     procedure:      `${PATHS.instruction}/procedure.png`,
@@ -69,7 +56,37 @@
   };
 
   // ==============================
-  // Ordered fields (csv)
+  // Keys (same as PsychoPy)
+  // ==============================
+  const SAME_KEY = "j";
+  const DIFF_KEY = "f";
+  const QUIT_KEY = "escape";
+
+  // ==============================
+  // Parameters (same as PsychoPy)
+  // ==============================
+  const N_PRACTICE = 15;
+  const N_BLOCK1 = 80;
+  const N_BLOCK2 = 80;
+
+  const PASS_CRITERION = 0.75;
+
+  const FIX_DUR = 1.0;        // s
+  const MEM_DUR = 0.5;        // s
+  const CUE_DUR = 1.0;        // s
+  const PROBE_MAX_RT = 3.0;   // s
+
+  const CONNECT_MIN = 5, CONNECT_MAX = 15;   // s
+  const SEND_MIN = 0.2, SEND_MAX = 1.5;      // s
+
+  // Pixel units (match PsychoPy)
+  const POS_L_X = -420;
+  const POS_R_X =  420;
+  const POS_Y   = 0;
+  const IMG_W = 194, IMG_H = 194;
+
+  // ==============================
+  // Ordered CSV columns (same as PsychoPy)
   // ==============================
   const ORDERED_FIELDS = [
     "name", "birthdate", "gender", "handedness",
@@ -99,56 +116,60 @@
     return shuffle(flags);
   }
 
-  /**
-   * condition: 50% emoji / 50% complexStimulus（按 trial 级别分配）
-   * congruency: 在每个 condition 内独立分配 congRatio（默认 0.60）
-   * isSame: 50% same / 50% different
-   */
+  // ==============================
+  // Trial generation (same logic as PsychoPy)
+  // ==============================
   function makeTrials(nTrials, congRatio = 0.60, condRatio = 0.50) {
-    const condFlags = makeFlagsRatio(nTrials, condRatio); // 1=emoji,0=complex
-    const nEmoji = condFlags.reduce((s, x) => s + x, 0);
-    const nComp = nTrials - nEmoji;
+    // condition flags: 1=emoji, 0=complexStimulus
+    const condFlags = makeFlagsRatio(nTrials, condRatio);
 
-    const congEmoji = makeFlagsRatio(nEmoji, congRatio);
-    const congComp  = makeFlagsRatio(nComp, congRatio);
-    const sameFlags = makeFlagsRatio(nTrials, 0.50);
+    const nEmoji = condFlags.reduce((s, x) => s + x, 0);
+    const nComp  = nTrials - nEmoji;
+
+    const congEmoji = makeFlagsRatio(nEmoji, congRatio); // 1=congruent
+    const congComp  = makeFlagsRatio(nComp,  congRatio);
+
+    const sameFlags = makeFlagsRatio(nTrials, 0.50);     // 1=same
 
     let idxE = 0, idxC = 0;
     const trials = [];
 
     for (let i = 0; i < nTrials; i++) {
-      // 记忆刺激：从7张里抽2张（每个 trial 都是随机抽取）
+      // memory: sample 2 without replacement
       const memPick = shuffle(MEM_POOL).slice(0, 2);
       let memL = memPick[0], memR = memPick[1];
       if (Math.random() >= 0.5) [memL, memR] = [memR, memL];
 
-      // cue pair：7个情绪对随机选一对（每个 trial 随机）
+      // cue pair
       const [emojiPath, stimPath] = choice(CUE_PAIRS);
+      const emoji_fn = emojiPath.split("/").pop();
+      const stim_fn  = stimPath.split("/").pop();
 
-      // cue side：emoji 在左或右随机
+      // cueSide (emoji side)
       const cueSide = Math.random() < 0.5 ? "left" : "right";
 
-      // condition：trial 级别按 condFlags 分配（50/50）
       const condition = condFlags[i] === 1 ? "emoji" : "complexStimulus";
 
-      // congruency：在各自 condition 内按比例分配（默认 60% congruent）
-      const congFlag = (condition === "emoji") ? congEmoji[idxE++] : congComp[idxC++];
-      const congruency = congFlag === 1 ? "congruent" : "incongruent";
+      let congruentFlag;
+      if (condition === "emoji") congruentFlag = congEmoji[idxE++];
+      else congruentFlag = congComp[idxC++];
 
+      const congruency = congruentFlag === 1 ? "congruent" : "incongruent";
       const opposite = cueSide === "left" ? "right" : "left";
 
-      // probeSide 规则（你原逻辑保留不动）：
-      // - emoji条件：congruent -> probe 在 emoji side；incongruent -> probe 在 opposite
-      // - complexStimulus条件：congruent -> probe 在 opposite；incongruent -> probe 在 cueSide
+      // probeSide rule (same as PsychoPy)
       let probeSide;
       if (condition === "emoji") {
-        probeSide = (congFlag === 1) ? cueSide : opposite;
+        probeSide = (congruentFlag === 1) ? cueSide : opposite;
       } else {
-        probeSide = (congFlag === 1) ? opposite : cueSide;
+        probeSide = (congruentFlag === 1) ? opposite : cueSide;
       }
 
-      // same/diff（50/50）
-      const isSame = sameFlags[i]; // 1=same
+      // isSame 50/50
+      const isSame = sameFlags[i];
+
+      // LOCATION-BINDING SAME (same as PsychoPy):
+      // if same: probeStim must match the item at the probed location
       let probeStim;
       if (isSame === 1) {
         probeStim = (probeSide === "left") ? memL : memR;
@@ -156,9 +177,6 @@
         const remain = MEM_POOL.filter(x => x !== memL && x !== memR);
         probeStim = choice(remain);
       }
-
-      const emoji_fn = emojiPath.split("/").pop();
-      const stim_fn  = stimPath.split("/").pop();
 
       trials.push({
         memL, memR,
@@ -172,243 +190,12 @@
         probeStim
       });
     }
+
     return trials;
   }
 
   // ==============================
-  // Layout HTML helpers
-  // ==============================
-  function makeCenteredHTML(html) {
-    // 注意：页面背景灰色由 index.html 控制更稳；这里仅保证居中与字体
-    return `
-      <div style="
-        width:100vw;height:100vh;
-        display:flex;align-items:center;justify-content:center;
-        font-family:${FONT_FAMILY};
-        color:#000;
-      ">
-        <div style="text-align:center;">
-          ${html}
-        </div>
-      </div>`;
-  }
-
-  // ✅ “+”单独注视点（PsychoPy 的 fixation）
-  function fixationTrial(durationMs) {
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(`<div style="font-size:64px;font-weight:800;line-height:1;">+</div>`),
-      choices: "NO_KEYS",
-      trial_duration: durationMs
-    };
-  }
-
-  // ✅ 三列布局：左图 + 中间“+” + 右图（同一行）
-  function dualImageWithFix(memL, memR, durationMs) {
-    const html = `
-      <div style="display:flex;align-items:center;justify-content:center;gap:90px;">
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          <img src="${memL}" width="${IMG_W}" height="${IMG_H}">
-        </div>
-
-        <div style="font-size:64px;font-weight:800;line-height:1;">+</div>
-
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          <img src="${memR}" width="${IMG_W}" height="${IMG_H}">
-        </div>
-      </div>
-    `;
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(html),
-      choices: "NO_KEYS",
-      trial_duration: durationMs
-    };
-  }
-
-  // ✅ sending 动态页（随机 200–1500ms）
-  function sendingTrial() {
-    const sendDur = Math.round(randFloat(SEND_MIN, SEND_MAX));
-    const html = `<div style="font-size:44px;font-weight:800;" id="sendtxt">对方正在发送......</div>`;
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(html),
-      choices: "NO_KEYS",
-      trial_duration: sendDur,
-      data: { _trial_type: "sending", sendDur },
-      on_load: () => {
-        const el = document.getElementById("sendtxt");
-        if (!el) return;
-        let dots = 0;
-        const timer = setInterval(() => {
-          dots = (dots + 1) % 7;
-          el.textContent = "对方正在发送" + ".".repeat(dots);
-        }, 100);
-        window.__sendTimer = timer;
-      },
-      on_finish: () => {
-        if (window.__sendTimer) clearInterval(window.__sendTimer);
-      }
-    };
-  }
-
-  // ✅ cue 页：emoji + complex 同屏（1000ms），中间有“+”
-  function cueWithFix(tr) {
-    const leftImg  = tr.cueSide === "left" ? tr.emojiPath : tr.stimPath;
-    const rightImg = tr.cueSide === "left" ? tr.stimPath  : tr.emojiPath;
-
-    const html = `
-      <div style="display:flex;align-items:center;justify-content:center;gap:90px;">
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          <img src="${leftImg}" width="${IMG_W}" height="${IMG_H}">
-        </div>
-
-        <div style="font-size:64px;font-weight:800;line-height:1;">+</div>
-
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          <img src="${rightImg}" width="${IMG_W}" height="${IMG_H}">
-        </div>
-      </div>
-    `;
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(html),
-      choices: "NO_KEYS",
-      trial_duration: CUE_DUR
-    };
-  }
-
-  // ✅ probe 页：永远三列占位，probe 只出现在一侧；不显示任何按键提示文字
-  function probeTrial(tr) {
-    const leftBox = tr.probeSide === "left"
-      ? `<img src="${tr.probeStim}" width="${IMG_W}" height="${IMG_H}">`
-      : ``;
-
-    const rightBox = tr.probeSide === "right"
-      ? `<img src="${tr.probeStim}" width="${IMG_W}" height="${IMG_H}">`
-      : ``;
-
-    const html = `
-      <div style="display:flex;align-items:center;justify-content:center;gap:90px;">
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          ${leftBox}
-        </div>
-
-        <div style="font-size:64px;font-weight:800;line-height:1;">+</div>
-
-        <div style="width:${IMG_W}px;height:${IMG_H}px;display:flex;align-items:center;justify-content:center;">
-          ${rightBox}
-        </div>
-      </div>
-    `;
-
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(html),
-      choices: [SAME_KEY, DIFF_KEY],
-      trial_duration: PROBE_MAX_RT,
-      response_ends_trial: true,
-      data: {
-        _trial_type: "probe",
-        condition: tr.condition,
-        congruency: tr.congruency,
-        cueSide: tr.cueSide,
-        probeSide: tr.probeSide,
-        isSame: tr.isSame,
-        memL: tr.memL,
-        memR: tr.memR,
-        emoji_fn: tr.emoji_fn,
-        stim_fn: tr.stim_fn,
-        probeStim: tr.probeStim,
-      },
-      on_finish: (data) => {
-  // 1) 把 response 统一成 "j"/"f"
-  const responded = data.response !== null && data.response !== undefined;
-
-  let respKey = "";
-  if (responded) {
-    if (typeof data.response === "number") {
-      // 有些 jsPsych 返回 keyCode：70/74...
-      respKey = jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response);
-    } else {
-      // 有些返回 "j"/"f"
-      respKey = String(data.response);
-    }
-    respKey = respKey.toLowerCase();
-  }
-
-  // 2) 位置绑定：isSame 是你在 makeTrials 里生成的（保持不动）
-  let acc = 0;
-  if (responded) {
-    if (tr.isSame === 1 && respKey === SAME_KEY) acc = 1;
-    else if (tr.isSame === 0 && respKey === DIFF_KEY) acc = 1;
-  }
-
-  data.respKey = respKey;  // 写回你想要的字母
-  data.acc = acc;
-  data.rt = responded ? data.rt : "";
-}
-    };
-  }
-
-  // ✅ connecting 动态页（随机 5–15s）
-  function connectingTrial() {
-    const dur = Math.round(randFloat(CONNECT_MIN, CONNECT_MAX));
-    const html = `
-      <div style="font-size:44px;font-weight:800;" id="conntxt">正在与对方连接...</div>
-      <div style="height:18px"></div>
-      <div style="font-size:36px;font-weight:800;">请稍候</div>
-    `;
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: makeCenteredHTML(html),
-      choices: "NO_KEYS",
-      trial_duration: dur,
-      data: { _trial_type: "connecting", dur },
-      on_load: () => {
-        const el = document.getElementById("conntxt");
-        if (!el) return;
-        let dots = 0;
-        const timer = setInterval(() => {
-          dots = (dots + 1) % 4;
-          el.textContent = "正在与对方连接" + ".".repeat(dots);
-        }, 200);
-        window.__connTimer = timer;
-      },
-      on_finish: () => {
-        if (window.__connTimer) clearInterval(window.__connTimer);
-      }
-    };
-  }
-
-  // instruction pages：空格继续
-  function instructionImageTrial(imgPath) {
-    return {
-      type: jsPsychImageKeyboardResponse,
-      stimulus: imgPath,
-      choices: [" "],
-      prompt: "",
-      render_on_canvas: false
-    };
-  }
-
-  // practice feedback：600ms
-  function feedbackTrial() {
-    return {
-      type: jsPsychHtmlKeyboardResponse,
-      stimulus: () => {
-        const last = jsPsych.data.get().last(1).values()[0];
-        const acc = last?.acc ?? 0;
-        const txt = acc === 1 ? "恭喜你答对了！" : "很遗憾，你答错了。";
-        return makeCenteredHTML(`<div style="font-size:44px;font-weight:800;">${txt}</div>`);
-      },
-      choices: "NO_KEYS",
-      trial_duration: 600
-    };
-  }
-
-  // ==============================
-  // CSV helpers
+  // CSV helpers (download)
   // ==============================
   function rowsToOrderedCSV(rows) {
     const esc = (v) => {
@@ -434,26 +221,397 @@
     URL.revokeObjectURL(url);
   }
 
+  function downloadNow(tag = "ordered") {
+    const subj = window.__subj || { name: "NA" };
+    const safeName = (subj.name || "NA").trim().replace(/\s+/g, "_") || "NA";
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
+    const filename = `${safeName}_EmojiSocial_${stamp}_${tag}.csv`;
+    downloadCSV(filename, rowsToOrderedCSV(window.__rows || []));
+  }
+
   // ==============================
-  // Build trials timeline
+  // Layout helpers (pix-like positioning)
   // ==============================
-  function buildTrialsTimeline(trials, isPractice, blockName) {
-    const timeline = [];
+  function pxSceneHTML(inner) {
+    // A full-viewport stage; center is (0,0); left/right are +/-420px
+    return `
+      <div style="
+        width:100vw;height:100vh;
+        position:relative;
+        font-family:${FONT_FAMILY};
+        color:#000;
+      ">
+        ${inner}
+      </div>
+    `;
+  }
+
+  function imgAt(path, x, y) {
+    // x,y in px, origin at center
+    const left = `calc(50% + ${x}px)`;
+    const top  = `calc(50% + ${y}px)`;
+    return `
+      <img src="${path}"
+        style="
+          position:absolute;
+          left:${left}; top:${top};
+          transform: translate(-50%,-50%);
+          width:${IMG_W}px; height:${IMG_H}px;
+        ">
+    `;
+  }
+
+  function fixAtCenter() {
+    return `
+      <div style="
+        position:absolute;
+        left:50%; top:50%;
+        transform: translate(-50%,-50%);
+        font-size:90px;
+        line-height:1;
+        font-weight:700;
+      ">+</div>
+    `;
+  }
+
+  // ==============================
+  // jsPsych trials (match PsychoPy timing)
+  // ==============================
+  function fixationTrial() {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: pxSceneHTML(fixAtCenter()),
+      choices: "NO_KEYS",
+      trial_duration: Math.round(FIX_DUR * 1000),
+      on_start: () => {}
+    };
+  }
+
+  function memoryTrial(tr) {
+    const html = pxSceneHTML(
+      imgAt(tr.memL, POS_L_X, POS_Y) +
+      imgAt(tr.memR, POS_R_X, POS_Y) +
+      fixAtCenter()
+    );
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: html,
+      choices: "NO_KEYS",
+      trial_duration: Math.round(MEM_DUR * 1000)
+    };
+  }
+
+  // Sending page: text only, no fixation (same as PsychoPy)
+  function sendingTrial() {
+    const durS = randFloat(SEND_MIN, SEND_MAX);
+    const durMs = Math.round(durS * 1000);
+
+    const html = `
+      <div style="
+        width:100vw;height:100vh;
+        display:flex;align-items:center;justify-content:center;
+        font-family:${FONT_FAMILY};color:#000;
+      ">
+        <div id="sendtxt" style="font-size:50px;font-weight:700;">对方正在发送......</div>
+      </div>
+    `;
+
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: html,
+      choices: "NO_KEYS",
+      trial_duration: durMs,
+      data: { _trial_type: "sending", sendDur: durS },
+      on_load: () => {
+        const el = document.getElementById("sendtxt");
+        if (!el) return;
+        let dots = 0;
+        const timer = setInterval(() => {
+          dots = (dots + 1) % 7;
+          el.textContent = "对方正在发送" + ".".repeat(dots);
+        }, 100);
+        window.__sendTimer = timer;
+      },
+      on_finish: () => {
+        if (window.__sendTimer) clearInterval(window.__sendTimer);
+      }
+    };
+  }
+
+  // Cue page: emoji+stim + fixation (same as PsychoPy)
+  function cueTrial(tr) {
+    const leftImg  = tr.cueSide === "left" ? tr.emojiPath : tr.stimPath;
+    const rightImg = tr.cueSide === "left" ? tr.stimPath  : tr.emojiPath;
+
+    const html = pxSceneHTML(
+      imgAt(leftImg, POS_L_X, POS_Y) +
+      imgAt(rightImg, POS_R_X, POS_Y) +
+      fixAtCenter()
+    );
+
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: html,
+      choices: "NO_KEYS",
+      trial_duration: Math.round(CUE_DUR * 1000)
+    };
+  }
+
+  // Probe page: single-side + fixation (no reminder text)
+  function probeTrial(tr) {
+    const x = tr.probeSide === "left" ? POS_L_X : POS_R_X;
+
+    const html = pxSceneHTML(
+      imgAt(tr.probeStim, x, POS_Y) +
+      fixAtCenter()
+    );
+
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: html,
+      choices: [SAME_KEY, DIFF_KEY, QUIT_KEY],
+      trial_duration: Math.round(PROBE_MAX_RT * 1000),
+      response_ends_trial: true,
+      data: {
+        _trial_type: "probe",
+        condition: tr.condition,
+        congruency: tr.congruency,
+        cueSide: tr.cueSide,
+        probeSide: tr.probeSide,
+        isSame: tr.isSame,
+        memL: tr.memL,
+        memR: tr.memR,
+        emoji_fn: tr.emoji_fn,
+        stim_fn: tr.stim_fn,
+        probeStim: tr.probeStim
+      },
+      on_finish: (data) => {
+        // Normalize response to "j"/"f"/"escape"
+        let respKey = "";
+        if (data.response !== null && data.response !== undefined) {
+          if (typeof data.response === "number") {
+            respKey = jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response);
+          } else {
+            respKey = String(data.response);
+          }
+          respKey = respKey.toLowerCase();
+        }
+
+        if (respKey === QUIT_KEY) {
+          // Save current data then "quit"
+          downloadNow("ordered_partial");
+          // Show a quit message and stop
+          jsPsych.endExperiment("已退出（已下载当前数据）。");
+          return;
+        }
+
+        // rt in seconds (to match PsychoPy clock.getTime)
+        const rt_s = (data.rt !== null && data.rt !== undefined) ? (data.rt / 1000.0) : "";
+
+        // Accuracy (same as PsychoPy, based on isSame + key)
+        let acc = 0;
+        if (respKey) {
+          if (tr.isSame === 1 && respKey === SAME_KEY) acc = 1;
+          else if (tr.isSame === 0 && respKey === DIFF_KEY) acc = 1;
+        }
+
+        data.respKey = respKey;
+        data.rt = rt_s;
+        data.acc = acc;
+      }
+    };
+  }
+
+  // Practice feedback: 0.6s (same as PsychoPy)
+  function feedbackTrial() {
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: () => {
+        const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(1).values()[0];
+        const acc = last?.acc ?? 0;
+        const txt = acc === 1 ? "恭喜你答对了！" : "很遗憾，你答错了。";
+        return `
+          <div style="
+            width:100vw;height:100vh;
+            display:flex;align-items:center;justify-content:center;
+            font-family:${FONT_FAMILY};
+          ">
+            <div style="font-size:50px;font-weight:700;color:#000;">${txt}</div>
+          </div>
+        `;
+      },
+      choices: "NO_KEYS",
+      trial_duration: 600
+    };
+  }
+
+  // Connecting page: 5–15s, text only (same as PsychoPy)
+  function connectingTrial() {
+    const durS = randFloat(CONNECT_MIN, CONNECT_MAX);
+    const durMs = Math.round(durS * 1000);
+
+    const html = `
+      <div style="
+        width:100vw;height:100vh;
+        display:flex;align-items:center;justify-content:center;
+        font-family:${FONT_FAMILY};color:#000;
+      ">
+        <div style="text-align:center;">
+          <div id="conntxt" style="font-size:50px;font-weight:700;">正在与对方连接...</div>
+          <div style="height:18px"></div>
+          <div style="font-size:50px;font-weight:700;">请稍候</div>
+        </div>
+      </div>
+    `;
+
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: html,
+      choices: [QUIT_KEY],
+      trial_duration: durMs,
+      response_ends_trial: true,
+      data: { _trial_type: "connecting", dur: durS },
+      on_load: () => {
+        const el = document.getElementById("conntxt");
+        if (!el) return;
+        let dots = 0;
+        const timer = setInterval(() => {
+          dots = (dots + 1) % 4;
+          el.textContent = "正在与对方连接" + ".".repeat(dots);
+        }, 200);
+        window.__connTimer = timer;
+      },
+      on_finish: (data) => {
+        if (window.__connTimer) clearInterval(window.__connTimer);
+
+        // allow quit here too
+        let respKey = "";
+        if (data.response !== null && data.response !== undefined) {
+          respKey = (typeof data.response === "number")
+            ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
+            : String(data.response);
+          respKey = respKey.toLowerCase();
+        }
+        if (respKey === QUIT_KEY) {
+          downloadNow("ordered_partial");
+          jsPsych.endExperiment("已退出（已下载当前数据）。");
+        }
+      }
+    };
+  }
+
+  // Instruction image page: space to continue / escape to quit
+  function instructionImageTrial(imgPath) {
+    return {
+      type: jsPsychImageKeyboardResponse,
+      stimulus: imgPath,
+      choices: [" ", QUIT_KEY],
+      render_on_canvas: false,
+      on_finish: (data) => {
+        // If escape on instruction: save partial & quit
+        let respKey = "";
+        if (data.response !== null && data.response !== undefined) {
+          respKey = (typeof data.response === "number")
+            ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
+            : String(data.response);
+          respKey = respKey.toLowerCase();
+        }
+        if (respKey === QUIT_KEY) {
+          downloadNow("ordered_partial");
+          jsPsych.endExperiment("已退出（已下载当前数据）。");
+        }
+      }
+    };
+  }
+
+  // ==============================
+  // Demographics (PsychoPy dlg equivalent)
+  // ==============================
+  const subjForm = {
+    type: jsPsychSurveyHtmlForm,
+    html: `
+      <div style="font-family:${FONT_FAMILY};max-width:720px;margin:0 auto;text-align:left;color:#000">
+        <h2 style="text-align:center;margin-top:0;font-size:42px;">实验信息（请填写）</h2>
+        <div style="text-align:center;margin:10px 0 18px 0;font-size:16px;opacity:.85;">
+          （无需鼠标）按 <b>Tab</b> 切换输入框，<b>↑/↓</b> 选择下拉项，按 <b>Enter</b> 提交
+        </div>
+
+        <p><label>被试编号/姓名（必填）：<br>
+          <input id="field_name" name="name" type="text" required style="width:100%;padding:12px;font-size:18px">
+        </label></p>
+
+        <p><label>出生日期（YYYY-MM-DD）：<br>
+          <input name="birthdate" type="date" required style="padding:12px;font-size:18px">
+        </label></p>
+
+        <p><label>性别：<br>
+          <select name="gender" required style="padding:12px;font-size:18px">
+            <option value="" selected disabled>请选择</option>
+            <option value="F">F</option>
+            <option value="M">M</option>
+            <option value="Other">Other</option>
+          </select>
+        </label></p>
+
+        <p><label>利手：<br>
+          <select name="handedness" required style="padding:12px;font-size:18px">
+            <option value="" selected disabled>请选择</option>
+            <option value="Right">Right</option>
+            <option value="Left">Left</option>
+            <option value="Both">Both</option>
+          </select>
+        </label></p>
+
+        <p style="text-align:center;margin-top:18px">
+          <button type="submit" style="padding:12px 28px;font-size:18px">开始实验</button>
+        </p>
+      </div>
+    `,
+    on_load: () => {
+      const first = document.getElementById("field_name");
+      if (first) first.focus();
+
+      document.addEventListener("keydown", function handler(e){
+        if (e.key === "Enter") {
+          const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+          if (tag === "select") return;
+          const form = document.querySelector(".jspsych-content form");
+          if (form) form.requestSubmit();
+        }
+      }, { once: false });
+    },
+    on_finish: (data) => {
+      const r = data.response || {};
+      window.__subj = {
+        name: r.name || "",
+        birthdate: r.birthdate || "",
+        gender: r.gender || "",
+        handedness: r.handedness || ""
+      };
+    }
+  };
+
+  // ==============================
+  // Build a block (same sequence as PsychoPy)
+  // Fix(1s) -> Memory(0.5s) -> Sending(0.2-1.5s) -> Cue(1s) -> Probe(max 3s) -> (Practice feedback 0.6s)
+  // ==============================
+  function buildBlockTimeline(trials, isPractice, blockName) {
+    const tl = [];
 
     for (let i = 0; i < trials.length; i++) {
       const tr = trials[i];
 
-      timeline.push(fixationTrial(FIX_DUR));
-      timeline.push(dualImageWithFix(tr.memL, tr.memR, MEM_DUR));
-      timeline.push(sendingTrial());
-      timeline.push(cueWithFix(tr));
-      timeline.push(probeTrial(tr));
-      if (isPractice) timeline.push(feedbackTrial());
+      tl.push(fixationTrial());
+      tl.push(memoryTrial(tr));
+      tl.push(sendingTrial());
+      tl.push(cueTrial(tr));
+      tl.push(probeTrial(tr));
+      if (isPractice) tl.push(feedbackTrial());
 
-      // write one ordered row
-      timeline.push({
+      // write ordered row (same as PsychoPy columns)
+      tl.push({
         type: jsPsychHtmlKeyboardResponse,
-        stimulus: makeCenteredHTML(`<div style="opacity:0">.</div>`),
+        stimulus: "",
         choices: "NO_KEYS",
         trial_duration: 0,
         on_finish: () => {
@@ -492,102 +650,8 @@
       });
     }
 
-    return timeline;
+    return tl;
   }
-
-  // ==============================
-  // jsPsych init
-  // ==============================
-  const jsPsych = initJsPsych({
-    on_finish: () => {
-      const subj = window.__subj || {};
-      const safeName = (subj.name || "NA").trim().replace(/\s+/g, "_") || "NA";
-      const stamp = new Date().toISOString().replace(/[-:]/g, "").slice(0, 15);
-      const filename = `${safeName}_EmojiSocial_${stamp}_ordered.csv`;
-
-      const csvText = rowsToOrderedCSV(window.__rows);
-      downloadCSV(filename, csvText);
-
-      jsPsych.displayElement.innerHTML = makeCenteredHTML(
-        `<div style="font-size:44px;font-weight:900;">实验已结束，数据文件已自动下载。</div>
-         <div style="height:18px"></div>
-         <div style="font-size:32px;font-weight:800;">请将下载的 CSV 文件发送给实验员。</div>`
-      );
-    }
-  });
-
-  window.__rows = [];
-  window.__subj = null;
-
-  // ==============================
-  // Participant form (keyboard-first, no mouse needed)
-  // ==============================
-  const subjForm = {
-    type: jsPsychSurveyHtmlForm,
-    html: `
-      <div style="font-family:${FONT_FAMILY};max-width:720px;margin:0 auto;text-align:left;color:#000">
-        <h2 style="text-align:center;margin-top:0;font-size:40px;">实验信息（请填写）</h2>
-
-        <div style="text-align:center;margin:10px 0 18px 0;font-size:16px;opacity:.85;">
-          <b>无需鼠标</b>：按 <b>Tab</b> 切换输入框，<b>↑/↓</b> 选择下拉项，按 <b>Enter</b> 继续
-        </div>
-
-        <p><label>被试编号/姓名（必填）：<br>
-          <input id="field_name" name="name" type="text" required
-                 style="width:100%;padding:12px;font-size:18px">
-        </label></p>
-
-        <p><label>出生日期：<br>
-          <input name="birthdate" type="date" required style="padding:12px;font-size:18px">
-        </label></p>
-
-        <p><label>性别：<br>
-          <select name="gender" required style="padding:12px;font-size:18px">
-            <option value="" selected disabled>请选择</option>
-            <option value="F">F</option>
-            <option value="M">M</option>
-            <option value="Other">Other</option>
-          </select>
-        </label></p>
-
-        <p><label>利手：<br>
-          <select name="handedness" required style="padding:12px;font-size:18px">
-            <option value="" selected disabled>请选择</option>
-            <option value="Right">Right</option>
-            <option value="Left">Left</option>
-            <option value="Both">Both</option>
-          </select>
-        </label></p>
-
-        <p style="text-align:center;margin-top:18px">
-          <button type="submit" style="padding:12px 28px;font-size:18px">开始实验（Enter）</button>
-        </p>
-      </div>
-    `,
-    on_load: () => {
-      const first = document.getElementById("field_name");
-      if (first) first.focus();
-
-      // Enter 提交（select 上 Enter 常用于确认选项，所以 select 时不强推提交）
-      document.addEventListener("keydown", function handler(e){
-        if (e.key === "Enter") {
-          const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
-          if (tag === "select") return;
-          const form = document.querySelector(".jspsych-content form");
-          if (form) form.requestSubmit();
-        }
-      }, { once: false });
-    },
-    on_finish: (data) => {
-      const resp = data.response || {};
-      window.__subj = {
-        name: resp.name || "",
-        birthdate: resp.birthdate || "",
-        gender: resp.gender || "",
-        handedness: resp.handedness || ""
-      };
-    }
-  };
 
   // ==============================
   // Preload
@@ -606,13 +670,41 @@
   };
 
   // ==============================
-  // Practice loop node (repeat until pass)
+  // Init jsPsych
+  // ==============================
+  const jsPsych = initJsPsych({
+    on_finish: () => {
+      // Download ordered csv (equivalent to PsychoPy write_ordered_csv at end)
+      downloadNow("ordered");
+
+      // End screen (image page in PsychoPy; here we already show end.png before finish)
+      jsPsych.displayElement.innerHTML = `
+        <div style="
+          width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
+          font-family:${FONT_FAMILY};
+        ">
+          <div style="text-align:center;color:#000;">
+            <div style="font-size:44px;font-weight:800;">实验已结束，数据已下载。</div>
+            <div style="height:12px"></div>
+            <div style="font-size:26px;font-weight:700;">请将 CSV 文件发送给实验员。</div>
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  // global holders
+  window.__rows = [];
+  window.__subj = null;
+
+  // ==============================
+  // Practice loop (same as PsychoPy while True)
   // ==============================
   const practiceNode = {
     timeline: [
       instructionImageTrial(INSTR.practice_intro),
       connectingTrial(),
-      ...buildTrialsTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice")
+      ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
     ],
     loop_function: () => {
       const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
@@ -620,38 +712,50 @@
 
       if (acc >= PASS_CRITERION) return false;
 
+      // show practice_fail then repeat (same as PsychoPy)
       jsPsych.addNodeToEndOfTimeline(instructionImageTrial(INSTR.practice_fail), jsPsych.resumeExperiment);
       return true;
     }
   };
 
   // ==============================
-  // Master timeline
+  // Master timeline (match PsychoPy order)
   // ==============================
-  const masterTimeline = [];
+  const timeline = [];
 
-  masterTimeline.push(preload);
-  masterTimeline.push({ type: jsPsychFullscreen, fullscreen_mode: true });
+  timeline.push(preload);
 
-  masterTimeline.push(instructionImageTrial(INSTR.welcome));
-  masterTimeline.push(instructionImageTrial(INSTR.procedure));
+  // Fullscreen (PsychoPy fullscr=True)
+  timeline.push({ type: jsPsychFullscreen, fullscreen_mode: true });
 
-  masterTimeline.push(subjForm);
+  // Cursor hidden (PsychoPy win.mouseVisible = False)
+  // ——通过 index.html 的 CSS 更稳；这里不做额外 JS 操作
 
-  masterTimeline.push(practiceNode);
+  // Instructions
+  timeline.push(instructionImageTrial(INSTR.welcome));
+  timeline.push(instructionImageTrial(INSTR.procedure));
 
-  masterTimeline.push(instructionImageTrial(INSTR.formal_intro));
+  // Demographics (PsychoPy dlg)
+  timeline.push(subjForm);
 
-  masterTimeline.push(connectingTrial());
-  masterTimeline.push(...buildTrialsTimeline(makeTrials(N_BLOCK1, 0.60, 0.50), false, "formalBlock1"));
+  // PRACTICE (keep connecting)
+  timeline.push(practiceNode);
 
-  masterTimeline.push(instructionImageTrial(INSTR.break));
+  // FORMAL
+  timeline.push(instructionImageTrial(INSTR.formal_intro));
 
-  masterTimeline.push(connectingTrial());
-  masterTimeline.push(...buildTrialsTimeline(makeTrials(N_BLOCK2, 0.60, 0.50), false, "formalBlock2"));
+  timeline.push(connectingTrial());
+  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK1, 0.60, 0.50), false, "formalBlock1"));
 
-  masterTimeline.push(instructionImageTrial(INSTR.end));
+  timeline.push(instructionImageTrial(INSTR.break));
 
-  jsPsych.run(masterTimeline);
+  timeline.push(connectingTrial());
+  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK2, 0.60, 0.50), false, "formalBlock2"));
+
+  // Save ordered ONLY before end page in PsychoPy:
+  // Web: we download at finish; but we keep end page like PsychoPy
+  timeline.push(instructionImageTrial(INSTR.end));
+
+  jsPsych.run(timeline);
 
 })();
