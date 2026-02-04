@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emoji Social Attention (Web)</title>
+
+  <!-- jsPsych core + css (use jsDelivr for stability) -->
+  <link href="https://cdn.jsdelivr.net/npm/jspsych@7.3.4/css/jspsych.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/jspsych@7.3.4"></script>
+
+  <!-- Plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-preload@1.2.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-fullscreen@1.2.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-html-keyboard-response@1.2.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-image-keyboard-response@1.2.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@jspsych/plugin-survey-html-form@1.2.1"></script>
+
+  <style>
+    body { background: rgb(128,128,128); }
+    body.hide-cursor, body.hide-cursor * { cursor: none !important; }
+
+    .center-wrap{
+      width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
+      flex-direction:column;color:#000;
+      font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
+      user-select:none;
+    }
+    .bigtext{font-size:50px;white-space:pre-line;text-align:center;line-height:1.4;}
+    .fix{font-size:90px;line-height:1;margin:0;}
+    .row{display:flex;gap:260px;align-items:center;justify-content:center;}
+    .imgbox{width:194px;height:194px;display:flex;align-items:center;justify-content:center;}
+    .imgbox img{width:194px;height:194px;object-fit:contain;}
+  </style>
+</head>
+
+<body class="hide-cursor">
+  <script src="./experiment.js"></script>
+</body>
+</html>
