@@ -1,122 +1,537 @@
-<!doctype html>
-<html lang="zh-CN">
+(() => {
+  /***********************
+   * Parameters
+   ***********************/
+  const FONT_STACK = `"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif`;
 
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  const SAME_KEY = "j";
+  const DIFF_KEY = "f";
 
-<title>Emoji Social Attention (Web)</title>
+  const N_PRACTICE = 15;
+  const N_BLOCK1 = 80;
+  const N_BLOCK2 = 80;
 
-<!-- =========================
-     jsPsych 8.2.3 本地文件
-     （你已经下载好的版本）
-========================= -->
-<link rel="stylesheet" href="./lib/jspsych.css">
-<script src="./lib/jspsych.js"></script>
+  const PASS_CRITERION = 0.75;
 
-<script src="./lib/plugin-preload.js"></script>
-<script src="./lib/plugin-fullscreen.js"></script>
-<script src="./lib/plugin-html-keyboard-response.js"></script>
-<script src="./lib/plugin-image-keyboard-response.js"></script>
-<script src="./lib/plugin-survey-html-form.js"></script>
+  const FIX_DUR = 1000;
+  const MEM_DUR = 500;
+  const CUE_DUR = 1000;
+  const PROBE_MAX_RT = 3000;
 
-<!-- =========================
-     自动屏幕缩放（核心）
-========================= -->
-<script>
-(function () {
+  const CONNECT_MIN = 5, CONNECT_MAX = 15;
+  const SEND_MIN = 0.2, SEND_MAX = 1.5;
 
-  const BASE_W = 1920;
-  const BASE_H = 1080;
+  const POS_L = "left";
+  const POS_R = "right";
 
-  function applyScale() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+  const IMG_SIZE = 194; // px
 
-    const scale = Math.min(w / BASE_W, h / BASE_H);
+  // 你的素材路径（仓库根目录下这些文件夹）
+  const INSTR_DIR = "InstructionImages";
+  const MEM_DIR = "MemoryStimuli";
+  const CUE_DIR = "CueStimuli"; // 如需改成 CueSimuli 就改这里
 
-    document.body.style.transform = `scale(${scale})`;
-    document.body.style.transformOrigin = "top left";
-    document.body.style.width = BASE_W + "px";
-    document.body.style.height = BASE_H + "px";
+  // Memory stimuli pool
+  const MEM_POOL = [
+    `${MEM_DIR}/stim_0089.png`,
+    `${MEM_DIR}/stim_0095.png`,
+    `${MEM_DIR}/stim_0307.png`,
+    `${MEM_DIR}/stim_0395.png`,
+    `${MEM_DIR}/stim_0405.png`,
+    `${MEM_DIR}/stim_0652.png`,
+    `${MEM_DIR}/stim_0797.png`,
+  ];
+
+  // Cue pairs: (emoji, stim)
+  const CUE_PAIRS = [
+    ["anger.png",     "stim_0001_anger.png"],
+    ["calmness.png",  "stim_circular-041_calmness.png"],
+    ["disgust.png",   "stim_dim1-074_disgust.png"],
+    ["fear.png",      "stim_dim2-fear.png"],
+    ["happiness.png", "stim_0262_happiness.png"],
+    ["sadness.png",   "stim_0806_sadness.png"],
+    ["surprise.png",  "stim_0889_surprise.png"],
+  ].map(([e,s]) => [`${CUE_DIR}/${e}`, `${CUE_DIR}/${s}`]);
+
+  /***********************
+   * Helpers
+   ***********************/
+  const rand = (min, max) => Math.random() * (max - min) + min;
+  const choice = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  function makeFlagsRatio(n, ratio1){
+    const n1 = Math.round(n * ratio1);
+    const flags = Array(n1).fill(1).concat(Array(n - n1).fill(0));
+    return shuffle(flags);
   }
 
-  window.addEventListener("resize", applyScale);
-  window.addEventListener("load", applyScale);
+  function makeTrials(nTrials, congRatio=0.60, condRatio=0.50){
+    // condition: 1=emoji 0=complexStimulus
+    const condFlags = makeFlagsRatio(nTrials, condRatio);
+    const nEmoji = condFlags.reduce((a,b)=>a+b,0);
+    const nComp = nTrials - nEmoji;
+
+    const congEmoji = makeFlagsRatio(nEmoji, congRatio);
+    const congComp  = makeFlagsRatio(nComp,  congRatio);
+    const sameFlags = makeFlagsRatio(nTrials, 0.50);
+
+    let idxE = 0, idxC = 0;
+
+    const trials = [];
+    for(let i=0;i<nTrials;i++){
+      const mem2 = shuffle(MEM_POOL).slice(0,2);
+      const [m1,m2_] = mem2;
+      let memL, memR;
+      if(Math.random() < 0.5){ memL=m1; memR=m2_; } else { memL=m2_; memR=m1; }
+
+      const [emojiPath, stimPath] = choice(CUE_PAIRS);
+      const cueSide = Math.random() < 0.5 ? "left" : "right";
+
+      const condition = condFlags[i] === 1 ? "emoji" : "complexStimulus";
+      const cong = (condition === "emoji") ? congEmoji[idxE++] : congComp[idxC++];
+      const congruency = cong === 1 ? "congruent" : "incongruent";
+
+      const opposite = cueSide === "left" ? "right" : "left";
+
+      let probeSide;
+      if(condition === "emoji"){
+        probeSide = (cong === 1) ? cueSide : opposite;
+      } else {
+        probeSide = (cong === 1) ? opposite : cueSide;
+      }
+
+      const isSame = sameFlags[i]; // 1 same, 0 diff
+      let probeStim;
+      if(isSame === 1){
+        probeStim = (probeSide === "left") ? memL : memR;
+      } else {
+        const remain = MEM_POOL.filter(x => x !== memL && x !== memR);
+        probeStim = choice(remain);
+      }
+
+      trials.push({
+        memL, memR,
+        emojiPath, stimPath,
+        cueSide, condition, congruency,
+        probeSide, isSame,
+        probeStim
+      });
+    }
+    return trials;
+  }
+
+  function fullImageHTML(src){
+    // ✅ 关键：整张图片完整显示在屏幕里
+    return `<div class="fullimg-wrap"><img src="${src}" alt="instruction"></div>`;
+  }
+
+  function fixationHTML(){
+    return `<div class="center-wrap"><div class="fix">+</div></div>`;
+  }
+
+  function memoryHTML(memL, memR){
+    return `
+      <div class="center-wrap">
+        <div class="row">
+          <div class="imgbox"><img src="${memL}" /></div>
+          <div class="imgbox"><img src="${memR}" /></div>
+        </div>
+        <div class="fix" style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);">+</div>
+      </div>
+    `;
+  }
+
+  function cueHTML(cueSide, emojiPath, stimPath){
+    const leftImg  = (cueSide === "left") ? emojiPath : stimPath;
+    const rightImg = (cueSide === "left") ? stimPath : emojiPath;
+    return `
+      <div class="center-wrap">
+        <div class="row">
+          <div class="imgbox"><img src="${leftImg}" /></div>
+          <div class="imgbox"><img src="${rightImg}" /></div>
+        </div>
+        <div class="fix" style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);">+</div>
+      </div>
+    `;
+  }
+
+  function probeHTML(probeSide, probeStim){
+    const leftImg  = (probeSide === "left") ? probeStim : "";
+    const rightImg = (probeSide === "right") ? probeStim : "";
+    return `
+      <div class="center-wrap">
+        <div class="row">
+          <div class="imgbox">${leftImg ? `<img src="${leftImg}" />` : ""}</div>
+          <div class="imgbox">${rightImg ? `<img src="${rightImg}" />` : ""}</div>
+        </div>
+        <div class="fix" style="position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);">+</div>
+      </div>
+    `;
+  }
+
+  function connectingTrial(){
+    const durMs = Math.round(rand(CONNECT_MIN, CONNECT_MAX) * 1000);
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: () => `<div class="center-wrap"><div class="bigtext" id="connText">正在与对方连接...\n\n请稍候</div></div>`,
+      choices: "NO_KEYS",
+      trial_duration: durMs,
+      on_load: () => {
+        const el = document.getElementById("connText");
+        let dots = 0;
+        const timer = setInterval(() => {
+          dots = (dots + 1) % 4;
+          el.textContent = "正在与对方连接" + ".".repeat(dots) + "\n\n请稍候";
+        }, 200);
+        jsPsych.getCurrentTrial().data = { _interval: timer };
+      },
+      on_finish: (data) => {
+        if(data._interval) clearInterval(data._interval);
+      }
+    };
+  }
+
+  function sendingTrial(){
+    const sendSec = rand(SEND_MIN, SEND_MAX);
+    const durMs = Math.round(sendSec * 1000);
+    return {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: () => `<div class="center-wrap"><div class="bigtext" id="sendText">对方正在发送......</div></div>`,
+      choices: "NO_KEYS",
+      trial_duration: durMs,
+      data: { sendDur: sendSec },
+      on_load: () => {
+        const el = document.getElementById("sendText");
+        let dots = 0;
+        const timer = setInterval(() => {
+          dots = (dots + 1) % 7;
+          el.textContent = "对方正在发送" + ".".repeat(dots);
+        }, 100);
+        jsPsych.getCurrentTrial().data._interval = timer;
+      },
+      on_finish: (data) => {
+        if(data._interval) clearInterval(data._interval);
+      }
+    };
+  }
+
+  function downloadCSV(filename){
+    const csv = jsPsych.data.get().csv();
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /***********************
+   * Init jsPsych
+   ***********************/
+  const jsPsych = initJsPsych({
+    on_finish: () => {
+      // 自动下载
+      const p = jsPsych.data.get().filter({trialTag:"participant"}).values()[0] || {};
+      const safeName = (p.name || "NA").toString().trim().replace(/\s+/g,"_") || "NA";
+      const stamp = new Date().toISOString().replace(/[:.]/g,"-");
+      downloadCSV(`${safeName}_EmojiSocial_${stamp}.csv`);
+    }
+  });
+
+  /***********************
+   * Timeline building blocks
+   ***********************/
+  // 1) Fullscreen
+  const enterFullscreen = {
+    type: jsPsychFullscreen,
+    fullscreen_mode: true
+  };
+
+  // 2) Participant info
+  const participant = {
+    type: jsPsychSurveyHtmlForm,
+    html: `
+      <div class="center-wrap">
+        <div style="width:min(800px,92vw); font-family:${FONT_STACK}; color:#000;">
+          <h2 style="margin:0 0 20px 0; font-weight:700;">实验信息（请填写）</h2>
+
+          <p style="margin:10px 0;">姓名：<input name="name" required style="font-size:18px; width:280px;"></p>
+
+          <p style="margin:10px 0;">出生日期：
+            <input name="birthdate" type="date" required style="font-size:18px;">
+          </p>
+
+          <p style="margin:10px 0;">性别：
+            <select name="gender" required style="font-size:18px;">
+              <option value="">请选择</option>
+              <option value="F">F</option>
+              <option value="M">M</option>
+              <option value="Other">Other</option>
+            </select>
+          </p>
+
+          <p style="margin:10px 0;">利手：
+            <select name="handedness" required style="font-size:18px;">
+              <option value="">请选择</option>
+              <option value="Right">Right</option>
+              <option value="Left">Left</option>
+              <option value="Both">Both</option>
+            </select>
+          </p>
+
+          <p style="margin:24px 0 0 0; font-size:18px;">填写完成后点击提交开始。</p>
+          <p style="opacity:.7; font-size:14px;">（按 Esc 可退出全屏）</p>
+        </div>
+      </div>
+    `,
+    button_label: "提交并开始",
+    data: { trialTag:"participant" },
+    on_finish: (data) => {
+      const r = data.response;
+      jsPsych.data.addProperties({
+        name: r.name || "",
+        birthdate: r.birthdate || "",
+        gender: r.gender || "",
+        handedness: r.handedness || ""
+      });
+    }
+  };
+
+  // 3) Instruction pages (full image fit)
+  const instr = (png) => ({
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: fullImageHTML(`${INSTR_DIR}/${png}`),
+    choices: [" "]
+  });
+
+  // Preload all images
+  const preload = {
+    type: jsPsychPreload,
+    images: [
+      // instruction
+      `${INSTR_DIR}/welcome.png`,
+      `${INSTR_DIR}/procedure.png`,
+      `${INSTR_DIR}/practice_intro.png`,
+      `${INSTR_DIR}/practice_fail.png`,
+      `${INSTR_DIR}/formal_intro.png`,
+      `${INSTR_DIR}/break.png`,
+      `${INSTR_DIR}/end.png`,
+      // memory pool
+      ...MEM_POOL,
+      // cue pairs
+      ...CUE_PAIRS.flat()
+    ]
+  };
+
+  /***********************
+   * One block timeline from trials
+   ***********************/
+  function blockTimeline(trials, blockName, isPractice){
+    const tl = [];
+
+    trials.forEach((tr, idx) => {
+      // Fixation
+      tl.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: fixationHTML(),
+        choices: "NO_KEYS",
+        trial_duration: FIX_DUR,
+        data: { block:blockName, trial: idx+1, isPractice: +isPractice, trialTag:"fix" }
+      });
+
+      // Memory
+      tl.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: memoryHTML(tr.memL, tr.memR),
+        choices: "NO_KEYS",
+        trial_duration: MEM_DUR,
+        data: { block:blockName, trial: idx+1, isPractice:+isPractice, memL:tr.memL, memR:tr.memR, trialTag:"memory" }
+      });
+
+      // Sending (random)
+      tl.push(Object.assign(sendingTrial(), {
+        data: {
+          block:blockName, trial: idx+1, isPractice:+isPractice,
+          trialTag:"sending"
+        }
+      }));
+
+      // Cue
+      tl.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: cueHTML(tr.cueSide, tr.emojiPath, tr.stimPath),
+        choices: "NO_KEYS",
+        trial_duration: CUE_DUR,
+        data: {
+          block:blockName, trial: idx+1, isPractice:+isPractice,
+          condition: tr.condition, congruency: tr.congruency,
+          cueSide: tr.cueSide,
+          emoji_fn: tr.emojiPath.replace(`${CUE_DIR}/`,""),
+          stim_fn: tr.stimPath.replace(`${CUE_DIR}/`,""),
+          trialTag:"cue"
+        }
+      });
+
+      // Probe (response)
+      tl.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: probeHTML(tr.probeSide, tr.probeStim),
+        choices: [DIFF_KEY, SAME_KEY, "Escape"],
+        trial_duration: PROBE_MAX_RT,
+        data: {
+          block:blockName, trial: idx+1, isPractice:+isPractice,
+          condition: tr.condition, congruency: tr.congruency,
+          cueSide: tr.cueSide, probeSide: tr.probeSide,
+          isSame: tr.isSame,
+          memL: tr.memL, memR: tr.memR,
+          emoji_fn: tr.emojiPath.replace(`${CUE_DIR}/`,""),
+          stim_fn: tr.stimPath.replace(`${CUE_DIR}/`,""),
+          probeStim: tr.probeStim,
+          trialTag:"probe"
+        },
+        on_finish: (data) => {
+          const key = data.response;
+          if(key === "Escape"){
+            jsPsych.endExperiment("实验已退出。");
+            return;
+          }
+          data.respKey = key || "";
+          data.rt = (data.rt == null) ? "" : data.rt;
+
+          const responded = key === SAME_KEY || key === DIFF_KEY;
+          let acc = 0;
+          if(responded){
+            if(data.isSame === 1 && key === SAME_KEY) acc = 1;
+            if(data.isSame === 0 && key === DIFF_KEY) acc = 1;
+          }
+          data.acc = acc;
+
+          // 把上一个 sendingTrial 的 sendDur 合并到本 trial 里（与你原来一致）
+          const lastSend = jsPsych.data.get().filter({trialTag:"sending"}).last(1).values()[0];
+          data.sendDur = lastSend ? (lastSend.sendDur ?? "") : "";
+        }
+      });
+
+      // Practice feedback
+      if(isPractice){
+        tl.push({
+          type: jsPsychHtmlKeyboardResponse,
+          stimulus: () => {
+            const last = jsPsych.data.get().filter({trialTag:"probe"}).last(1).values()[0];
+            const ok = last && last.acc === 1;
+            return `<div class="center-wrap"><div class="bigtext">${ok ? "恭喜你答对了！" : "很遗憾，你答错了。"}</div></div>`;
+          },
+          choices: "NO_KEYS",
+          trial_duration: 600,
+          data: { block:blockName, trial: idx+1, isPractice:+isPractice, trialTag:"feedback" }
+        });
+      }
+    });
+
+    return tl;
+  }
+
+  /***********************
+   * Practice loop with pass criterion
+   ***********************/
+  const practiceLoop = {
+    timeline: [
+      instr("practice_intro.png"),
+      connectingTrial(),
+      {
+        timeline: [],
+        on_timeline_start: () => {
+          const trials = makeTrials(N_PRACTICE, 0.60, 0.50);
+          practiceLoop.timeline[2].timeline = blockTimeline(trials, "practice", true);
+        }
+      },
+      {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: () => {
+          const accs = jsPsych.data.get().filter({block:"practice", trialTag:"probe"}).select("acc").values;
+          const mean = accs.length ? accs.reduce((a,b)=>a+(+b||0),0)/accs.length : 0;
+          const pass = mean >= PASS_CRITERION;
+          // 把 pass 写入全局
+          jsPsych.data.addProperties({ practiceMeanAcc: mean });
+          return pass
+            ? `<div class="center-wrap"><div class="bigtext">练习通过！按空格进入正式实验。</div></div>`
+            : fullImageHTML(`${INSTR_DIR}/practice_fail.png`);
+        },
+        choices: [" "],
+        data: { trialTag:"practiceResult" }
+      }
+    ],
+    loop_function: () => {
+      const mean = jsPsych.data.get().properties().practiceMeanAcc ?? 0;
+      return mean < PASS_CRITERION;
+    }
+  };
+
+  /***********************
+   * Formal blocks
+   ***********************/
+  const formalBlock1 = {
+    timeline: [
+      connectingTrial(),
+      {
+        timeline: [],
+        on_timeline_start: () => {
+          const trials = makeTrials(N_BLOCK1, 0.60, 0.50);
+          formalBlock1.timeline[1].timeline = blockTimeline(trials, "formalBlock1", false);
+        }
+      }
+    ]
+  };
+
+  const formalBlock2 = {
+    timeline: [
+      connectingTrial(),
+      {
+        timeline: [],
+        on_timeline_start: () => {
+          const trials = makeTrials(N_BLOCK2, 0.60, 0.50);
+          formalBlock2.timeline[1].timeline = blockTimeline(trials, "formalBlock2", false);
+        }
+      }
+    ]
+  };
+
+  // End page (full image fit)
+  const endPage = instr("end.png");
+
+  /***********************
+   * Master timeline
+   ***********************/
+  const timeline = [];
+
+  timeline.push(enterFullscreen);
+  timeline.push(preload);
+  timeline.push(participant);
+
+  timeline.push(instr("welcome.png"));
+  timeline.push(instr("procedure.png"));
+
+  timeline.push(practiceLoop);
+
+  timeline.push(instr("formal_intro.png"));
+  timeline.push(formalBlock1);
+
+  timeline.push(instr("break.png"));
+  timeline.push(formalBlock2);
+
+  timeline.push(endPage);
+
+  jsPsych.run(timeline);
 
 })();
-</script>
-
-<!-- =========================
-     样式
-========================= -->
-<style>
-
-html, body {
-  margin: 0;
-  padding: 0;
-  background: rgb(128,128,128);
-}
-
-body.hide-cursor,
-body.hide-cursor * {
-  cursor: none !important;
-}
-
-.center-wrap{
-  width:100%;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
-  color:#000;
-  font-family:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif;
-  user-select:none;
-}
-
-.bigtext{
-  font-size:50px;
-  white-space:pre-line;
-  text-align:center;
-  line-height:1.4;
-}
-
-.fix{
-  font-size:90px;
-}
-
-.row{
-  display:flex;
-  gap:260px;
-  align-items:center;
-  justify-content:center;
-}
-
-.imgbox{
-  width:194px;
-  height:194px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.imgbox img{
-  width:194px;
-  height:194px;
-  object-fit:contain;
-}
-
-</style>
-
-</head>
-
-<body class="hide-cursor">
-
-<!-- =========================
-     你的实验脚本
-========================= -->
-<script src="./experiment.js"></script>
-
-</body>
-</html>
