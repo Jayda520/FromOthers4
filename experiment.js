@@ -7,7 +7,7 @@
   const PATHS = {
     instruction: "InstructionImages",
     memory: "MemoryStimuli",
-    cue: "CueStimuli", // PsychoPy: CueSimuli or CueStimuli；Web 端建议统一用 CueStimuli
+    cue: "CueStimuli",
   };
 
   // ==============================
@@ -30,7 +30,7 @@
   ];
 
   // ==============================
-  // Cue pairs (emoji + stim fixed) —— filenames
+  // Cue pairs (emoji + stim fixed)
   // ==============================
   const CUE_PAIRS = [
     ["anger.png",     "stim_0001_anger.png"],
@@ -43,7 +43,7 @@
   ].map(([emoji, stim]) => [`${PATHS.cue}/${emoji}`, `${PATHS.cue}/${stim}`]);
 
   // ==============================
-  // Instruction images (fullscreen, space to continue)
+  // Instruction images
   // ==============================
   const INSTR = {
     welcome:        `${PATHS.instruction}/welcome.png`,
@@ -86,7 +86,7 @@
   const IMG_W = 194, IMG_H = 194;
 
   // ==============================
-  // Ordered CSV columns (same as PsychoPy)
+  // Ordered CSV columns
   // ==============================
   const ORDERED_FIELDS = [
     "name", "birthdate", "gender", "handedness",
@@ -120,34 +120,27 @@
   // Trial generation (same logic as PsychoPy)
   // ==============================
   function makeTrials(nTrials, congRatio = 0.60, condRatio = 0.50) {
-    // condition flags: 1=emoji, 0=complexStimulus
-    const condFlags = makeFlagsRatio(nTrials, condRatio);
-
+    const condFlags = makeFlagsRatio(nTrials, condRatio); // 1=emoji,0=complexStimulus
     const nEmoji = condFlags.reduce((s, x) => s + x, 0);
     const nComp  = nTrials - nEmoji;
 
     const congEmoji = makeFlagsRatio(nEmoji, congRatio); // 1=congruent
     const congComp  = makeFlagsRatio(nComp,  congRatio);
-
     const sameFlags = makeFlagsRatio(nTrials, 0.50);     // 1=same
 
     let idxE = 0, idxC = 0;
     const trials = [];
 
     for (let i = 0; i < nTrials; i++) {
-      // memory: sample 2 without replacement
       const memPick = shuffle(MEM_POOL).slice(0, 2);
       let memL = memPick[0], memR = memPick[1];
       if (Math.random() >= 0.5) [memL, memR] = [memR, memL];
 
-      // cue pair
       const [emojiPath, stimPath] = choice(CUE_PAIRS);
       const emoji_fn = emojiPath.split("/").pop();
       const stim_fn  = stimPath.split("/").pop();
 
-      // cueSide (emoji side)
       const cueSide = Math.random() < 0.5 ? "left" : "right";
-
       const condition = condFlags[i] === 1 ? "emoji" : "complexStimulus";
 
       let congruentFlag;
@@ -157,7 +150,6 @@
       const congruency = congruentFlag === 1 ? "congruent" : "incongruent";
       const opposite = cueSide === "left" ? "right" : "left";
 
-      // probeSide rule (same as PsychoPy)
       let probeSide;
       if (condition === "emoji") {
         probeSide = (congruentFlag === 1) ? cueSide : opposite;
@@ -165,14 +157,11 @@
         probeSide = (congruentFlag === 1) ? opposite : cueSide;
       }
 
-      // isSame 50/50
       const isSame = sameFlags[i];
 
-      // LOCATION-BINDING SAME (same as PsychoPy):
-      // if same: probeStim must match the item at the probed location
       let probeStim;
       if (isSame === 1) {
-        probeStim = (probeSide === "left") ? memL : memR;
+        probeStim = (probeSide === "left") ? memL : memR; // LOCATION-BINDING
       } else {
         const remain = MEM_POOL.filter(x => x !== memL && x !== memR);
         probeStim = choice(remain);
@@ -195,7 +184,7 @@
   }
 
   // ==============================
-  // CSV helpers (download)
+  // CSV helpers
   // ==============================
   function rowsToOrderedCSV(rows) {
     const esc = (v) => {
@@ -233,7 +222,6 @@
   // Layout helpers (pix-like positioning)
   // ==============================
   function pxSceneHTML(inner) {
-    // A full-viewport stage; center is (0,0); left/right are +/-420px
     return `
       <div style="
         width:100vw;height:100vh;
@@ -247,7 +235,6 @@
   }
 
   function imgAt(path, x, y) {
-    // x,y in px, origin at center
     const left = `calc(50% + ${x}px)`;
     const top  = `calc(50% + ${y}px)`;
     return `
@@ -275,15 +262,14 @@
   }
 
   // ==============================
-  // jsPsych trials (match PsychoPy timing)
+  // jsPsych trials
   // ==============================
   function fixationTrial() {
     return {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: pxSceneHTML(fixAtCenter()),
       choices: "NO_KEYS",
-      trial_duration: Math.round(FIX_DUR * 1000),
-      on_start: () => {}
+      trial_duration: Math.round(FIX_DUR * 1000)
     };
   }
 
@@ -301,7 +287,6 @@
     };
   }
 
-  // Sending page: text only, no fixation (same as PsychoPy)
   function sendingTrial() {
     const durS = randFloat(SEND_MIN, SEND_MAX);
     const durMs = Math.round(durS * 1000);
@@ -338,7 +323,6 @@
     };
   }
 
-  // Cue page: emoji+stim + fixation (same as PsychoPy)
   function cueTrial(tr) {
     const leftImg  = tr.cueSide === "left" ? tr.emojiPath : tr.stimPath;
     const rightImg = tr.cueSide === "left" ? tr.stimPath  : tr.emojiPath;
@@ -357,7 +341,6 @@
     };
   }
 
-  // Probe page: single-side + fixation (no reminder text)
   function probeTrial(tr) {
     const x = tr.probeSide === "left" ? POS_L_X : POS_R_X;
 
@@ -386,7 +369,6 @@
         probeStim: tr.probeStim
       },
       on_finish: (data) => {
-        // Normalize response to "j"/"f"/"escape"
         let respKey = "";
         if (data.response !== null && data.response !== undefined) {
           if (typeof data.response === "number") {
@@ -398,17 +380,13 @@
         }
 
         if (respKey === QUIT_KEY) {
-          // Save current data then "quit"
           downloadNow("ordered_partial");
-          // Show a quit message and stop
           jsPsych.endExperiment("已退出（已下载当前数据）。");
           return;
         }
 
-        // rt in seconds (to match PsychoPy clock.getTime)
         const rt_s = (data.rt !== null && data.rt !== undefined) ? (data.rt / 1000.0) : "";
 
-        // Accuracy (same as PsychoPy, based on isSame + key)
         let acc = 0;
         if (respKey) {
           if (tr.isSame === 1 && respKey === SAME_KEY) acc = 1;
@@ -422,7 +400,6 @@
     };
   }
 
-  // Practice feedback: 0.6s (same as PsychoPy)
   function feedbackTrial() {
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -445,7 +422,6 @@
     };
   }
 
-  // Connecting page: 5–15s, text only (same as PsychoPy)
   function connectingTrial() {
     const durS = randFloat(CONNECT_MIN, CONNECT_MAX);
     const durMs = Math.round(durS * 1000);
@@ -484,7 +460,6 @@
       on_finish: (data) => {
         if (window.__connTimer) clearInterval(window.__connTimer);
 
-        // allow quit here too
         let respKey = "";
         if (data.response !== null && data.response !== undefined) {
           respKey = (typeof data.response === "number")
@@ -500,15 +475,21 @@
     };
   }
 
-  // Instruction image page: space to continue / escape to quit
+  // ✅ FIXED HERE: instruction images are true fullscreen contain (no cropping)
   function instructionImageTrial(imgPath) {
     return {
-      type: jsPsychImageKeyboardResponse,
-      stimulus: imgPath,
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div style="
+          width:100vw;height:100vh;
+          display:flex;align-items:center;justify-content:center;
+          background:rgb(128,128,128);
+        ">
+          <img src="${imgPath}" style="width:100vw;height:100vh;object-fit:contain;display:block;">
+        </div>
+      `,
       choices: [" ", QUIT_KEY],
-      render_on_canvas: false,
       on_finish: (data) => {
-        // If escape on instruction: save partial & quit
         let respKey = "";
         if (data.response !== null && data.response !== undefined) {
           respKey = (typeof data.response === "number")
@@ -525,7 +506,7 @@
   }
 
   // ==============================
-  // Demographics (PsychoPy dlg equivalent)
+  // Demographics
   // ==============================
   const subjForm = {
     type: jsPsychSurveyHtmlForm,
@@ -592,8 +573,7 @@
   };
 
   // ==============================
-  // Build a block (same sequence as PsychoPy)
-  // Fix(1s) -> Memory(0.5s) -> Sending(0.2-1.5s) -> Cue(1s) -> Probe(max 3s) -> (Practice feedback 0.6s)
+  // Build block timeline
   // ==============================
   function buildBlockTimeline(trials, isPractice, blockName) {
     const tl = [];
@@ -608,7 +588,6 @@
       tl.push(probeTrial(tr));
       if (isPractice) tl.push(feedbackTrial());
 
-      // write ordered row (same as PsychoPy columns)
       tl.push({
         type: jsPsychHtmlKeyboardResponse,
         stimulus: "",
@@ -674,10 +653,7 @@
   // ==============================
   const jsPsych = initJsPsych({
     on_finish: () => {
-      // Download ordered csv (equivalent to PsychoPy write_ordered_csv at end)
       downloadNow("ordered");
-
-      // End screen (image page in PsychoPy; here we already show end.png before finish)
       jsPsych.displayElement.innerHTML = `
         <div style="
           width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
@@ -693,12 +669,11 @@
     }
   });
 
-  // global holders
   window.__rows = [];
   window.__subj = null;
 
   // ==============================
-  // Practice loop (same as PsychoPy while True)
+  // Practice loop
   // ==============================
   const practiceNode = {
     timeline: [
@@ -712,36 +687,26 @@
 
       if (acc >= PASS_CRITERION) return false;
 
-      // show practice_fail then repeat (same as PsychoPy)
       jsPsych.addNodeToEndOfTimeline(instructionImageTrial(INSTR.practice_fail), jsPsych.resumeExperiment);
       return true;
     }
   };
 
   // ==============================
-  // Master timeline (match PsychoPy order)
+  // Master timeline
   // ==============================
   const timeline = [];
 
   timeline.push(preload);
-
-  // Fullscreen (PsychoPy fullscr=True)
   timeline.push({ type: jsPsychFullscreen, fullscreen_mode: true });
 
-  // Cursor hidden (PsychoPy win.mouseVisible = False)
-  // ——通过 index.html 的 CSS 更稳；这里不做额外 JS 操作
-
-  // Instructions
   timeline.push(instructionImageTrial(INSTR.welcome));
   timeline.push(instructionImageTrial(INSTR.procedure));
 
-  // Demographics (PsychoPy dlg)
   timeline.push(subjForm);
 
-  // PRACTICE (keep connecting)
   timeline.push(practiceNode);
 
-  // FORMAL
   timeline.push(instructionImageTrial(INSTR.formal_intro));
 
   timeline.push(connectingTrial());
@@ -752,8 +717,6 @@
   timeline.push(connectingTrial());
   timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK2, 0.60, 0.50), false, "formalBlock2"));
 
-  // Save ordered ONLY before end page in PsychoPy:
-  // Web: we download at finish; but we keep end page like PsychoPy
   timeline.push(instructionImageTrial(INSTR.end));
 
   jsPsych.run(timeline);
