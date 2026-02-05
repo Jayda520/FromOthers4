@@ -80,10 +80,16 @@
   const SEND_MIN = 0.2, SEND_MAX = 1.5;      // s
 
   // Pixel units (match PsychoPy)
-  const POS_L_X = -420;
-  const POS_R_X =  420;
+  const POS_L_X = -360;
+  const POS_R_X =  360;
   const POS_Y   = 0;
-  const IMG_W = 194, IMG_H = 194;
+  // ==============================
+  // Stimulus size (relative to design height)
+  // ==============================
+  const IMG_SIZE = Math.round(DESIGN_H * 0.13);   // 约等于 150px @1200
+  const IMG_W = IMG_SIZE;
+  const IMG_H = IMG_SIZE;
+
 
   // ==============================
   // Ordered CSV columns
@@ -248,18 +254,19 @@
     `;
   }
 
-  function fixAtCenter() {
-    return `
-      <div style="
-        position:absolute;
-        left:50%; top:50%;
-        transform: translate(-50%,-50%);
-        font-size:90px;
-        line-height:1;
-        font-weight:700;
-      ">+</div>
-    `;
-  }
+function fixAtCenter() {
+  return `
+    <div style="
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%,-50%);
+      font-size:4vh;
+      line-height:1;
+      font-weight:700;
+    ">+</div>
+  `;
+}
+
 
   // ==============================
   // jsPsych trials
@@ -297,7 +304,7 @@
         display:flex;align-items:center;justify-content:center;
         font-family:${FONT_FAMILY};color:#000;
       ">
-        <div id="sendtxt" style="font-size:50px;font-weight:700;">对方正在发送......</div>
+        <div id="sendtxt" style="font-size:3vh;font-weight:700;">对方正在发送......</div>
       </div>
     `;
 
@@ -413,7 +420,7 @@
             display:flex;align-items:center;justify-content:center;
             font-family:${FONT_FAMILY};
           ">
-            <div style="font-size:50px;font-weight:700;color:#000;">${txt}</div>
+            <div style="font-size:3vh;font-weight:700;color:#000;">${txt}</div>
           </div>
         `;
       },
@@ -433,9 +440,9 @@
         font-family:${FONT_FAMILY};color:#000;
       ">
         <div style="text-align:center;">
-          <div id="conntxt" style="font-size:50px;font-weight:700;">正在与对方连接...</div>
+          <div id="conntxt" style="font-size:3vh;font-weight:700;">正在与对方连接...</div>
           <div style="height:18px"></div>
-          <div style="font-size:50px;font-weight:700;">请稍候</div>
+          <div style="font-size:3vh;font-weight:700;">请稍候</div>
         </div>
       </div>
     `;
@@ -676,22 +683,39 @@
   // ==============================
   // Practice loop
   // ==============================
-  const practiceNode = {
-    timeline: [
-      instructionImageTrial(INSTR.practice_intro),
-      connectingTrial(),
-      ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
-    ],
-    loop_function: () => {
-      const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
-      const acc = last.reduce((s, x) => s + (x.acc || 0), 0) / N_PRACTICE;
+  // ==============================
+// Practice loop  ✅ jsPsych 8.2.3 compatible
+// ==============================
+window.__practice_passed = false;
 
-      if (acc >= PASS_CRITERION) return false;
+const practiceNode = {
+  timeline: [
+    instructionImageTrial(INSTR.practice_intro),
+    connectingTrial(),
+    ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
 
-      jsPsych.addNodeToEndOfTimeline(instructionImageTrial(INSTR.practice_fail), jsPsych.resumeExperiment);
-      return true;
+    // ✅ 失败提示放在 timeline 里，用 conditional 控制显示
+    {
+      timeline: [instructionImageTrial(INSTR.practice_fail)],
+      conditional_function: () => {
+        return window.__practice_passed === false;
+      }
     }
-  };
+  ],
+
+  loop_function: () => {
+    // 只看“本轮最后 N_PRACTICE 个 probe”
+    const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
+    const n = last.length;
+    const acc = n ? (last.reduce((s, x) => s + (x.acc || 0), 0) / n) : 0;
+
+    window.__practice_passed = (acc >= PASS_CRITERION);
+
+    // ✅ 达标：退出循环；不达标：回到本 node 开头重新来一轮（并显示 practice_fail）
+    return !window.__practice_passed;
+  }
+};
+
 
   // ==============================
   // Master timeline
