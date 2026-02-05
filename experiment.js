@@ -69,7 +69,7 @@
   const N_BLOCK1 = 80;
   const N_BLOCK2 = 80;
 
-  const PASS_CRITERION = 0.75;
+  const PASS_CRITERION = 0.8;
 
   const FIX_DUR = 1.0;        // s
   const MEM_DUR = 0.5;        // s
