@@ -80,8 +80,8 @@
   const SEND_MIN = 0.2, SEND_MAX = 1.5;      // s
 
   // Pixel units (match PsychoPy)
-  const POS_L_X = -360;
-  const POS_R_X =  360;
+  const POS_L_X = -270;
+  const POS_R_X =  270;
   const POS_Y   = 0;
   // ==============================
   // Stimulus size (relative to design height)
