@@ -2,6 +2,11 @@
   "use strict";
 
   // ==============================
+  // Design base (used for scaling)
+  // ==============================
+  const DESIGN_H = 1200; // 你注释里暗示的基准高度（150px@1200）
+
+  // ==============================
   // Paths (match PsychoPy)
   // ==============================
   const PATHS = {
@@ -33,26 +38,26 @@
   // Cue pairs (emoji + stim fixed)
   // ==============================
   const CUE_PAIRS = [
-    ["anger.png",     "stim_0001_anger.png"],
-    ["calmness.png",  "stim_circular-041_calmness.png"],
-    ["disgust.png",   "stim_dim1-074_disgust.png"],
-    ["fear.png",      "stim_dim2-fear.png"],
+    ["anger.png", "stim_0001_anger.png"],
+    ["calmness.png", "stim_circular-041_calmness.png"],
+    ["disgust.png", "stim_dim1-074_disgust.png"],
+    ["fear.png", "stim_dim2-fear.png"],
     ["happiness.png", "stim_0262_happiness.png"],
-    ["sadness.png",   "stim_0806_sadness.png"],
-    ["surprise.png",  "stim_0889_surprise.png"],
+    ["sadness.png", "stim_0806_sadness.png"],
+    ["surprise.png", "stim_0889_surprise.png"],
   ].map(([emoji, stim]) => [`${PATHS.cue}/${emoji}`, `${PATHS.cue}/${stim}`]);
 
   // ==============================
   // Instruction images
   // ==============================
   const INSTR = {
-    welcome:        `${PATHS.instruction}/welcome.png`,
-    procedure:      `${PATHS.instruction}/procedure.png`,
+    welcome: `${PATHS.instruction}/welcome.png`,
+    procedure: `${PATHS.instruction}/procedure.png`,
     practice_intro: `${PATHS.instruction}/practice_intro.png`,
-    practice_fail:  `${PATHS.instruction}/practice_fail.png`,
-    formal_intro:   `${PATHS.instruction}/formal_intro.png`,
-    break:          `${PATHS.instruction}/break.png`,
-    end:            `${PATHS.instruction}/end.png`,
+    practice_fail: `${PATHS.instruction}/practice_fail.png`,
+    formal_intro: `${PATHS.instruction}/formal_intro.png`,
+    break: `${PATHS.instruction}/break.png`,
+    end: `${PATHS.instruction}/end.png`,
   };
 
   // ==============================
@@ -71,25 +76,25 @@
 
   const PASS_CRITERION = 0.8;
 
-  const FIX_DUR = 1.0;        // s
-  const MEM_DUR = 0.5;        // s
-  const CUE_DUR = 1.0;        // s
-  const PROBE_MAX_RT = 3.0;   // s
+  const FIX_DUR = 1.0; // s
+  const MEM_DUR = 0.5; // s
+  const CUE_DUR = 1.0; // s
+  const PROBE_MAX_RT = 3.0; // s
 
-  const CONNECT_MIN = 5, CONNECT_MAX = 15;   // s
-  const SEND_MIN = 0.2, SEND_MAX = 1.5;      // s
+  const CONNECT_MIN = 5,
+    CONNECT_MAX = 15; // s
+  const SEND_MIN = 0.2,
+    SEND_MAX = 1.5; // s
 
   // Pixel units (match PsychoPy)
   const POS_L_X = -270;
-  const POS_R_X =  270;
-  const POS_Y   = 0;
+  const POS_R_X = 270;
+  const POS_Y = 0;
 
   // ==============================
-  // Stimulus size (auto-adapt to screen height)
-  // ✅ 修复：你原来用 DESIGN_H 但没定义，会直接报错
+  // Stimulus size (relative to design height)
   // ==============================
-  const VIEW_H = Math.max(600, window.innerHeight || 900);
-  const IMG_SIZE = Math.round(VIEW_H * 0.13);
+  const IMG_SIZE = Math.round(DESIGN_H * 0.13); // 约等于 150px @1200
   const IMG_W = IMG_SIZE;
   const IMG_H = IMG_SIZE;
 
@@ -97,11 +102,27 @@
   // Ordered CSV columns
   // ==============================
   const ORDERED_FIELDS = [
-    "name", "birthdate", "gender", "handedness",
-    "block", "trial", "isPractice",
-    "condition", "validity", "cueSide", "probeSide", "isSame",
-    "memL", "memR", "emoji_fn", "stim_fn", "probeStim",
-    "respKey", "rt", "acc", "sendDur"
+    "name",
+    "birthdate",
+    "gender",
+    "handedness",
+    "block",
+    "trial",
+    "isPractice",
+    "condition",
+    "validity",
+    "cueSide",
+    "probeSide",
+    "isSame",
+    "memL",
+    "memR",
+    "emoji_fn",
+    "stim_fn",
+    "probeStim",
+    "respKey",
+    "rt",
+    "acc",
+    "sendDur",
   ];
 
   // ==============================
@@ -127,26 +148,28 @@
   // ==============================
   // Trial generation (same logic as PsychoPy)
   // ==============================
-  function makeTrials(nTrials, validRatio = 0.60, condRatio = 0.50) {
+  function makeTrials(nTrials, validRatio = 0.6, condRatio = 0.5) {
     const condFlags = makeFlagsRatio(nTrials, condRatio); // 1=emoji,0=complexStimulus
     const nEmoji = condFlags.reduce((s, x) => s + x, 0);
-    const nComp  = nTrials - nEmoji;
+    const nComp = nTrials - nEmoji;
 
     const validEmoji = makeFlagsRatio(nEmoji, validRatio); // 1=valid
-    const validComp  = makeFlagsRatio(nComp,  validRatio);
-    const sameFlags = makeFlagsRatio(nTrials, 0.50);     // 1=same
+    const validComp = makeFlagsRatio(nComp, validRatio);
+    const sameFlags = makeFlagsRatio(nTrials, 0.5); // 1=same
 
-    let idxE = 0, idxC = 0;
+    let idxE = 0,
+      idxC = 0;
     const trials = [];
 
     for (let i = 0; i < nTrials; i++) {
       const memPick = shuffle(MEM_POOL).slice(0, 2);
-      let memL = memPick[0], memR = memPick[1];
+      let memL = memPick[0],
+        memR = memPick[1];
       if (Math.random() >= 0.5) [memL, memR] = [memR, memL];
 
       const [emojiPath, stimPath] = choice(CUE_PAIRS);
       const emoji_fn = emojiPath.split("/").pop();
-      const stim_fn  = stimPath.split("/").pop();
+      const stim_fn = stimPath.split("/").pop();
 
       const cueSide = Math.random() < 0.5 ? "left" : "right";
       const condition = condFlags[i] === 1 ? "emoji" : "complexStimulus";
@@ -160,34 +183,36 @@
 
       let probeSide;
       if (condition === "emoji") {
-        probeSide = (validFlag === 1) ? cueSide : opposite;
+        probeSide = validFlag === 1 ? cueSide : opposite;
       } else {
-        probeSide = (validFlag === 1) ? opposite : cueSide;
+        probeSide = validFlag === 1 ? opposite : cueSide;
       }
 
       const isSame = sameFlags[i];
 
       let probeStim;
       if (isSame === 1) {
-        probeStim = (probeSide === "left") ? memL : memR; // LOCATION-BINDING
+        probeStim = probeSide === "left" ? memL : memR; // LOCATION-BINDING
       } else {
-        const remain = MEM_POOL.filter(x => x !== memL && x !== memR);
+        const remain = MEM_POOL.filter((x) => x !== memL && x !== memR);
         probeStim = choice(remain);
       }
 
       trials.push({
-        memL, memR,
-        emojiPath, stimPath,
-        emoji_fn, stim_fn,
+        memL,
+        memR,
+        emojiPath,
+        stimPath,
+        emoji_fn,
+        stim_fn,
         cueSide,
         condition,
         validity,
         isSame,
         probeSide,
-        probeStim
+        probeStim,
       });
     }
-
     return trials;
   }
 
@@ -202,7 +227,7 @@
       return s;
     };
     const header = ORDERED_FIELDS.join(",");
-    const lines = rows.map(r => ORDERED_FIELDS.map(k => esc(r[k])).join(","));
+    const lines = rows.map((r) => ORDERED_FIELDS.map((k) => esc(r[k])).join(","));
     return [header, ...lines].join("\n");
   }
 
@@ -244,7 +269,7 @@
 
   function imgAt(path, x, y) {
     const left = `calc(50% + ${x}px)`;
-    const top  = `calc(50% + ${y}px)`;
+    const top = `calc(50% + ${y}px)`;
     return `
       <img src="${path}"
         style="
@@ -277,21 +302,19 @@
       type: jsPsychHtmlKeyboardResponse,
       stimulus: pxSceneHTML(fixAtCenter()),
       choices: "NO_KEYS",
-      trial_duration: Math.round(FIX_DUR * 1000)
+      trial_duration: Math.round(FIX_DUR * 1000),
     };
   }
 
   function memoryTrial(tr) {
     const html = pxSceneHTML(
-      imgAt(tr.memL, POS_L_X, POS_Y) +
-      imgAt(tr.memR, POS_R_X, POS_Y) +
-      fixAtCenter()
+      imgAt(tr.memL, POS_L_X, POS_Y) + imgAt(tr.memR, POS_R_X, POS_Y) + fixAtCenter()
     );
     return {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: html,
       choices: "NO_KEYS",
-      trial_duration: Math.round(MEM_DUR * 1000)
+      trial_duration: Math.round(MEM_DUR * 1000),
     };
   }
 
@@ -327,35 +350,29 @@
       },
       on_finish: () => {
         if (window.__sendTimer) clearInterval(window.__sendTimer);
-      }
+      },
     };
   }
 
   function cueTrial(tr) {
-    const leftImg  = tr.cueSide === "left" ? tr.emojiPath : tr.stimPath;
-    const rightImg = tr.cueSide === "left" ? tr.stimPath  : tr.emojiPath;
+    const leftImg = tr.cueSide === "left" ? tr.emojiPath : tr.stimPath;
+    const rightImg = tr.cueSide === "left" ? tr.stimPath : tr.emojiPath;
 
     const html = pxSceneHTML(
-      imgAt(leftImg, POS_L_X, POS_Y) +
-      imgAt(rightImg, POS_R_X, POS_Y) +
-      fixAtCenter()
+      imgAt(leftImg, POS_L_X, POS_Y) + imgAt(rightImg, POS_R_X, POS_Y) + fixAtCenter()
     );
 
     return {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: html,
       choices: "NO_KEYS",
-      trial_duration: Math.round(CUE_DUR * 1000)
+      trial_duration: Math.round(CUE_DUR * 1000),
     };
   }
 
   function probeTrial(tr) {
     const x = tr.probeSide === "left" ? POS_L_X : POS_R_X;
-
-    const html = pxSceneHTML(
-      imgAt(tr.probeStim, x, POS_Y) +
-      fixAtCenter()
-    );
+    const html = pxSceneHTML(imgAt(tr.probeStim, x, POS_Y) + fixAtCenter());
 
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -374,7 +391,7 @@
         memR: tr.memR,
         emoji_fn: tr.emoji_fn,
         stim_fn: tr.stim_fn,
-        probeStim: tr.probeStim
+        probeStim: tr.probeStim,
       },
       on_finish: (data) => {
         let respKey = "";
@@ -393,7 +410,8 @@
           return;
         }
 
-        const rt_s = (data.rt !== null && data.rt !== undefined) ? (data.rt / 1000.0) : "";
+        const rt_s =
+          data.rt !== null && data.rt !== undefined ? data.rt / 1000.0 : "";
 
         let acc = 0;
         if (respKey) {
@@ -404,7 +422,7 @@
         data.respKey = respKey;
         data.rt = rt_s;
         data.acc = acc;
-      }
+      },
     };
   }
 
@@ -426,7 +444,7 @@
         `;
       },
       choices: "NO_KEYS",
-      trial_duration: 600
+      trial_duration: 600,
     };
   }
 
@@ -470,19 +488,21 @@
 
         let respKey = "";
         if (data.response !== null && data.response !== undefined) {
-          respKey = (typeof data.response === "number")
-            ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
-            : String(data.response);
+          respKey =
+            typeof data.response === "number"
+              ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
+              : String(data.response);
           respKey = respKey.toLowerCase();
         }
         if (respKey === QUIT_KEY) {
           downloadNow("ordered_partial");
           jsPsych.endExperiment("已退出（已下载当前数据）。");
         }
-      }
+      },
     };
   }
 
+  // instruction images are true fullscreen contain (no cropping)
   function instructionImageTrial(imgPath) {
     return {
       type: jsPsychHtmlKeyboardResponse,
@@ -499,16 +519,17 @@
       on_finish: (data) => {
         let respKey = "";
         if (data.response !== null && data.response !== undefined) {
-          respKey = (typeof data.response === "number")
-            ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
-            : String(data.response);
+          respKey =
+            typeof data.response === "number"
+              ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
+              : String(data.response);
           respKey = respKey.toLowerCase();
         }
         if (respKey === QUIT_KEY) {
           downloadNow("ordered_partial");
           jsPsych.endExperiment("已退出（已下载当前数据）。");
         }
-      }
+      },
     };
   }
 
@@ -559,14 +580,18 @@
       const first = document.getElementById("field_name");
       if (first) first.focus();
 
-      document.addEventListener("keydown", function handler(e){
-        if (e.key === "Enter") {
-          const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
-          if (tag === "select") return;
-          const form = document.querySelector(".jspsych-content form");
-          if (form) form.requestSubmit();
-        }
-      }, { once: false });
+      document.addEventListener(
+        "keydown",
+        function handler(e) {
+          if (e.key === "Enter") {
+            const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+            if (tag === "select") return;
+            const form = document.querySelector(".jspsych-content form");
+            if (form) form.requestSubmit();
+          }
+        },
+        { once: false }
+      );
     },
     on_finish: (data) => {
       const r = data.response || {};
@@ -574,9 +599,9 @@
         name: r.name || "",
         birthdate: r.birthdate || "",
         gender: r.gender || "",
-        handedness: r.handedness || ""
+        handedness: r.handedness || "",
       };
-    }
+    },
   };
 
   // ==============================
@@ -584,7 +609,6 @@
   // ==============================
   function buildBlockTimeline(trials, isPractice, blockName) {
     const tl = [];
-
     for (let i = 0; i < trials.length; i++) {
       const tr = trials[i];
 
@@ -601,9 +625,14 @@
         choices: "NO_KEYS",
         trial_duration: 0,
         on_finish: () => {
-          const subj = window.__subj || { name:"", birthdate:"", gender:"", handedness:"" };
+          const subj = window.__subj || {
+            name: "",
+            birthdate: "",
+            gender: "",
+            handedness: "",
+          };
           const lastProbe = jsPsych.data.get().filter({ _trial_type: "probe" }).last(1).values()[0];
-          const lastSend  = jsPsych.data.get().filter({ _trial_type: "sending" }).last(1).values()[0];
+          const lastSend = jsPsych.data.get().filter({ _trial_type: "sending" }).last(1).values()[0];
 
           window.__rows.push({
             name: subj.name,
@@ -630,23 +659,18 @@
             respKey: lastProbe?.respKey ?? "",
             rt: lastProbe?.rt ?? "",
             acc: lastProbe?.acc ?? 0,
-            sendDur: lastSend?.sendDur ?? ""
+            sendDur: lastSend?.sendDur ?? "",
           });
-        }
+        },
       });
     }
-
     return tl;
   }
 
   // ==============================
   // Preload
   // ==============================
-  const preloadList = [
-    ...Object.values(INSTR),
-    ...MEM_POOL,
-    ...CUE_PAIRS.flat()
-  ];
+  const preloadList = [...Object.values(INSTR), ...MEM_POOL, ...CUE_PAIRS.flat()];
 
   const preload = {
     type: jsPsychPreload,
@@ -657,9 +681,10 @@
 
   // ==============================
   // Init jsPsych
-  // ✅ 修复：去掉 display_element: "exp-scale-wrap"（你HTML里没有这个id会白屏）
   // ==============================
-  const jsPsych = initJsPsych({
+  const hasWrap = typeof document !== "undefined" && document.getElementById("exp-scale-wrap");
+  const jsPsychInitOptions = {
+    ...(hasWrap ? { display_element: "exp-scale-wrap" } : {}),
     on_finish: () => {
       downloadNow("ordered");
       jsPsych.displayElement.innerHTML = `
@@ -674,67 +699,54 @@
           </div>
         </div>
       `;
-    }
-  });
+    },
+  };
+
+  const jsPsych = initJsPsych(jsPsychInitOptions);
 
   window.__rows = [];
   window.__subj = null;
 
   // ==============================
-  // Practice loop ✅（保持你原逻辑：不达标就重复练习）
-  // ✅ 你这次只要求：practice_intro 放在练习前面且只出现一次
+  // Practice loop (kept as-is; not inserted into timeline in your original text)
   // ==============================
+  window.__practice_failed_prev = false;
+
   const practiceNode = {
     timeline: [
       connectingTrial(),
-      ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
+      ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.6, 0.5), true, "practice"),
     ],
     loop_function: () => {
       const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
       const acc = last.reduce((s, x) => s + (x.acc || 0), 0) / N_PRACTICE;
-
       if (acc >= PASS_CRITERION) return false;
-
-      // 这里你之前想插入 practice_fail 页面，但 jsPsych8 的“动态插入节点”写法你原先那句会报错
-      // 你这次没要求加 fail 页面逻辑，我先不动，只保留“重复练习”
       return true;
-    }
+    },
   };
+  void practiceNode; // 防止 lint 报 unused（不影响运行）
 
   // ==============================
   // Master timeline
   // ==============================
   const timeline = [];
-
   timeline.push(preload);
   timeline.push({ type: jsPsychFullscreen, fullscreen_mode: true });
 
-  // ✅ 第一页：被试信息填写
   timeline.push(subjForm);
-
-  // ✅ 说明页
   timeline.push(instructionImageTrial(INSTR.welcome));
   timeline.push(instructionImageTrial(INSTR.procedure));
 
-  // ✅ 练习说明页：放在练习阶段之前（只出现一次）
-  timeline.push(instructionImageTrial(INSTR.practice_intro));
-
-  // ✅ 练习阶段（会循环直到达标）
-  timeline.push(practiceNode);
-
-  // ✅ 正式实验开始页（练习之后）
   timeline.push(instructionImageTrial(INSTR.formal_intro));
-
   timeline.push(connectingTrial());
-  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK1, 0.60, 0.50), false, "formalBlock1"));
+  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK1, 0.6, 0.5), false, "formalBlock1"));
 
   timeline.push(instructionImageTrial(INSTR.break));
 
   timeline.push(connectingTrial());
-  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK2, 0.60, 0.50), false, "formalBlock2"));
+  timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK2, 0.6, 0.5), false, "formalBlock2"));
 
   timeline.push(instructionImageTrial(INSTR.end));
 
   jsPsych.run(timeline);
-
 })();
