@@ -97,7 +97,7 @@
   const ORDERED_FIELDS = [
     "name", "birthdate", "gender", "handedness",
     "block", "trial", "isPractice",
-    "condition", "congruency", "cueSide", "probeSide", "isSame",
+    "condition", "validity", "cueSide", "probeSide", "isSame",
     "memL", "memR", "emoji_fn", "stim_fn", "probeStim",
     "respKey", "rt", "acc", "sendDur"
   ];
@@ -125,13 +125,13 @@
   // ==============================
   // Trial generation (same logic as PsychoPy)
   // ==============================
-  function makeTrials(nTrials, congRatio = 0.60, condRatio = 0.50) {
+  function makeTrials(nTrials, validRatio = 0.60, condRatio = 0.50) {
     const condFlags = makeFlagsRatio(nTrials, condRatio); // 1=emoji,0=complexStimulus
     const nEmoji = condFlags.reduce((s, x) => s + x, 0);
     const nComp  = nTrials - nEmoji;
 
-    const congEmoji = makeFlagsRatio(nEmoji, congRatio); // 1=congruent
-    const congComp  = makeFlagsRatio(nComp,  congRatio);
+    const validEmoji = makeFlagsRatio(nEmoji, validRatio); // 1=valid
+    const validComp  = makeFlagsRatio(nComp,  validRatio);
     const sameFlags = makeFlagsRatio(nTrials, 0.50);     // 1=same
 
     let idxE = 0, idxC = 0;
@@ -149,18 +149,18 @@
       const cueSide = Math.random() < 0.5 ? "left" : "right";
       const condition = condFlags[i] === 1 ? "emoji" : "complexStimulus";
 
-      let congruentFlag;
-      if (condition === "emoji") congruentFlag = congEmoji[idxE++];
-      else congruentFlag = congComp[idxC++];
+      let validFlag;
+      if (condition === "emoji") validFlag = validEmoji[idxE++];
+      else validFlag = validComp[idxC++];
 
-      const congruency = congruentFlag === 1 ? "congruent" : "incongruent";
+      const validity = validFlag === 1 ? "valid" : "invalid";
       const opposite = cueSide === "left" ? "right" : "left";
 
       let probeSide;
       if (condition === "emoji") {
-        probeSide = (congruentFlag === 1) ? cueSide : opposite;
+        probeSide = (validFlag === 1) ? cueSide : opposite;
       } else {
-        probeSide = (congruentFlag === 1) ? opposite : cueSide;
+        probeSide = (validFlag === 1) ? opposite : cueSide;
       }
 
       const isSame = sameFlags[i];
@@ -179,7 +179,7 @@
         emoji_fn, stim_fn,
         cueSide,
         condition,
-        congruency,
+        validity,
         isSame,
         probeSide,
         probeStim
@@ -365,7 +365,7 @@ function fixAtCenter() {
       data: {
         _trial_type: "probe",
         condition: tr.condition,
-        congruency: tr.congruency,
+        validity: tr.validity,
         cueSide: tr.cueSide,
         probeSide: tr.probeSide,
         isSame: tr.isSame,
@@ -616,7 +616,7 @@ function fixAtCenter() {
             isPractice: isPractice ? 1 : 0,
 
             condition: tr.condition,
-            congruency: tr.congruency,
+            validity: tr.validity,
             cueSide: tr.cueSide,
             probeSide: tr.probeSide,
             isSame: tr.isSame,
@@ -686,21 +686,23 @@ function fixAtCenter() {
   // ==============================
 // Practice loop  ✅ jsPsych 8.2.3 compatible
 // ==============================
-window.__practice_passed = false;
+// ==============================
+// Practice loop  ✅ jsPsych 8.2.3 compatible (fixed fail-page timing)
+// ==============================
+window.__practice_failed_prev = false; // 上一轮是否失败（决定这一轮开头要不要显示 fail 图）
 
 const practiceNode = {
   timeline: [
     instructionImageTrial(INSTR.practice_intro),
-    connectingTrial(),
-    ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
 
-    // ✅ 失败提示放在 timeline 里，用 conditional 控制显示
+    // ✅ 只有“上一轮失败”时，才在新一轮开始前显示失败提示
     {
       timeline: [instructionImageTrial(INSTR.practice_fail)],
-      conditional_function: () => {
-        return window.__practice_passed === false;
-      }
-    }
+      conditional_function: () => window.__practice_failed_prev === true
+    },
+
+    connectingTrial(),
+    ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
   ],
 
   loop_function: () => {
@@ -709,10 +711,13 @@ const practiceNode = {
     const n = last.length;
     const acc = n ? (last.reduce((s, x) => s + (x.acc || 0), 0) / n) : 0;
 
-    window.__practice_passed = (acc >= PASS_CRITERION);
+    const passed = (acc >= PASS_CRITERION);
 
-    // ✅ 达标：退出循环；不达标：回到本 node 开头重新来一轮（并显示 practice_fail）
-    return !window.__practice_passed;
+    // ✅ 这一轮跑完后，记录“是否失败”，用于下一轮开头要不要显示 fail 图
+    window.__practice_failed_prev = !passed;
+
+    // ✅ 通过：退出循环；没通过：再来一轮
+    return !passed;
   }
 };
 
