@@ -710,20 +710,82 @@
   // ==============================
   // Practice loop (kept as-is; not inserted into timeline in your original text)
   // ==============================
-  window.__practice_failed_prev = false;
+  // ==============================
+// Practice loop ✅ jsPsych 8.2.3 compatible
+// 规则：intro -> (connect + N练习) -> 评估
+//    - 不达标：fail页（空格）-> 回到 intro -> 再练
+//    - 达标：退出循环 -> 进入 formal_intro
+// ==============================
 
-  const practiceNode = {
-    timeline: [
-      connectingTrial(),
-      ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.6, 0.5), true, "practice"),
-    ],
-    loop_function: () => {
-      const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
-      const acc = last.reduce((s, x) => s + (x.acc || 0), 0) / N_PRACTICE;
-      if (acc >= PASS_CRITERION) return false;
-      return true;
+ window.__practice_passed = false;     // 本轮是否通过
+ window.__practice_acc = 0;            // 记录本轮正确率（可选）
+
+ const practiceNode = {
+  timeline: [
+    // ① 每轮练习开始前：practice_intro（按空格继续）
+    instructionImageTrial(INSTR.practice_intro),
+
+    // ② 连接页（你原来的）
+    connectingTrial(),
+
+    // ③ 练习试次（你原来的）
+    ...buildBlockTimeline(makeTrials(N_PRACTICE, 0.60, 0.50), true, "practice"),
+
+    // ④ 评估正确率（0ms，不显示）
+    {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: "",
+      choices: "NO_KEYS",
+      trial_duration: 0,
+      on_finish: () => {
+        const last = jsPsych.data.get().filter({ _trial_type: "probe" }).last(N_PRACTICE).values();
+        const acc = last.reduce((s, x) => s + (x.acc || 0), 0) / N_PRACTICE;
+
+        window.__practice_acc = acc;
+        window.__practice_passed = acc >= PASS_CRITERION;
+      }
     },
-  };
+
+    // ⑤ 如果未通过：显示 practice_fail（空格回到下一轮 intro）
+    {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: () => {
+        if (window.__practice_passed) return ""; // 通过则不显示任何东西
+        return `
+          <div style="
+            width:100vw;height:100vh;
+            display:flex;align-items:center;justify-content:center;
+            background:rgb(128,128,128);
+          ">
+            <img src="${INSTR.practice_fail}" style="width:100vw;height:100vh;object-fit:contain;display:block;">
+          </div>
+        `;
+      },
+      choices: () => (window.__practice_passed ? "NO_KEYS" : [" ", QUIT_KEY]),
+      trial_duration: () => (window.__practice_passed ? 0 : null),
+      on_finish: (data) => {
+        // 支持 ESC 退出（跟你其它页一致）
+        let respKey = "";
+        if (data.response !== null && data.response !== undefined) {
+          respKey = (typeof data.response === "number")
+            ? jsPsych.pluginAPI.convertKeyCodeToKeyCharacter(data.response)
+            : String(data.response);
+          respKey = respKey.toLowerCase();
+        }
+        if (respKey === QUIT_KEY) {
+          downloadNow("ordered_partial");
+          jsPsych.endExperiment("已退出（已下载当前数据）。");
+        }
+      }
+    }
+  ],
+
+  // ⑥ 循环控制：未通过 -> 再来一轮；通过 -> 退出进入 formal_intro
+  loop_function: () => {
+    return !window.__practice_passed;
+  }
+ };
+
   void practiceNode; // 防止 lint 报 unused（不影响运行）
 
   // ==============================
@@ -737,7 +799,12 @@
   timeline.push(instructionImageTrial(INSTR.welcome));
   timeline.push(instructionImageTrial(INSTR.procedure));
 
+  // ✅ 练习：intro(在practiceNode里) -> 练习 -> 不过就fail再练 -> 过了退出
+  timeline.push(practiceNode);
+
+  // ✅ 通过后才会走到这里
   timeline.push(instructionImageTrial(INSTR.formal_intro));
+
   timeline.push(connectingTrial());
   timeline.push(...buildBlockTimeline(makeTrials(N_BLOCK1, 0.6, 0.5), false, "formalBlock1"));
 
